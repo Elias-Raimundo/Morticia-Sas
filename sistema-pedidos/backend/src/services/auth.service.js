@@ -9,24 +9,32 @@ export const register = async (data) => {
 
  const { name, lastName, email, password, dniCuil, address, phone } = data;
 
-if (!name || !lastName || !email || !password || !dniCuil || !address || !phone) {
-  throw new Error("FALTAN_DATOS");
-}
+  console.log("REGISTER BODY:", data);
+  console.log("EMAIL:", email);
+  console.log("DNI:", dniCuil);
+  
+  if (!name || !lastName || !email || !password || !dniCuil || !address || !phone) {
+    throw new Error("FALTAN_DATOS");
+  }
 
-const safeEmail = String(email).trim();
-const safeDniCuil = String(dniCuil).trim();
+  if (!email || typeof email !== "string") {
+      throw new Error("EMAIL_INVALIDO");
+  }
 
-const existingUser = await prisma.user.findUnique({
-  where: { email: safeEmail },
-});
+  const safeEmail = String(email).trim();
+  const safeDniCuil = String(dniCuil).trim();
 
-if (existingUser) {
-  throw new Error("El email ya está registrado");
-}
+  const existingUser = await prisma.user.findUnique({
+    where: { email: safeEmail },
+  });
 
-const existingDniCuil = await prisma.user.findUnique({
-  where: { dniCuil: safeDniCuil },
-});
+  if (existingUser) {
+    throw new Error("El email ya está registrado");
+  }
+
+  const existingDniCuil = await prisma.user.findUnique({
+    where: { dniCuil: safeDniCuil },
+  });
 
   if (existingDniCuil) {
     throw new Error("El DNI/CUIL ya está registrado");
