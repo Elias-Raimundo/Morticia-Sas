@@ -12,7 +12,7 @@ export const register = async (data) => {
   console.log("REGISTER BODY:", data);
   console.log("EMAIL:", email);
   console.log("DNI:", dniCuil);
-  
+
   if (!name || !lastName || !email || !password || !dniCuil || !address || !phone) {
     throw new Error("FALTAN_DATOS");
   }
@@ -46,9 +46,9 @@ export const register = async (data) => {
     data: {
       name,
       lastName,
-      email,
+      email: safeEmail,
       password: hashedPassword,
-      dniCuil,
+      dniCuil: safeDniCuil,
       address,
       phone,
       role: "client",
@@ -59,7 +59,7 @@ export const register = async (data) => {
 };
 
 export const login = async (data) => {
-  const user = await prisma.user.findUnique({
+  const user = await prisma.user.findFirst({
     where: { email: data.email },
   });
 
