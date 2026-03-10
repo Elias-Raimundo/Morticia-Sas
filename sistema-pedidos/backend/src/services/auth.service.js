@@ -32,7 +32,7 @@ export const register = async (data) => {
     throw new Error("El email ya está registrado");
   }
 
-  const existingDniCuil = await prisma.user.findUnique({
+  const existingDniCuil = await prisma.user.findFirst({
     where: { dniCuil: safeDniCuil },
   });
 
