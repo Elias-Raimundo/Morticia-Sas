@@ -24,7 +24,7 @@ export const register = async (data) => {
   const safeEmail = String(email).trim();
   const safeDniCuil = String(dniCuil).trim();
 
-  const existingUser = await prisma.user.findUnique({
+  const existingUser = await prisma.user.findFirst({
     where: { email: safeEmail },
   });
 
