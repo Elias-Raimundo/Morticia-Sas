@@ -181,9 +181,9 @@ export default function CreateOrderForm({ onSent }: { onSent?: () => void }) {
   if (!draft) return <div className="text-gray-600">No se pudo cargar el pedido.</div>;
 
   return (
-    <div className="grid gap-5 lg:grid-cols-12">
+    <div className="grid grid-cols-1 gap-5 lg:grid-cols-12">
       {/* LEFT */}
-      <div className="lg:col-span-4 rounded-2xl border border-gray-200 bg-white shadow-sm overflow-hidden">
+      <div className="min-w-0 lg:col-span-4 rounded-2xl border border-gray-200 bg-white shadow-sm overflow-hidden">
         <div className="px-5 py-4 border-b bg-gray-900">
           <h3 className="font-semibold text-white text-lg">Artículos</h3>
           <p className="text-sm text-gray-300">Elegí los artículos a pedir</p>
@@ -245,7 +245,7 @@ export default function CreateOrderForm({ onSent }: { onSent?: () => void }) {
       </div>
 
       {/* RIGHT */}
-      <div className="lg:col-span-8 rounded-2xl border border-gray-200 bg-white shadow-sm overflow-hidden">
+      <div className="min-w-0 lg:col-span-8 rounded-2xl border border-gray-200 bg-white shadow-sm overflow-hidden">
         <div className="px-5 py-4 border-b bg-gray-900 flex items-start justify-between gap-4">
           <div>
             <h3 className="font-semibold text-white text-lg">Pedido</h3>
@@ -276,13 +276,15 @@ export default function CreateOrderForm({ onSent }: { onSent?: () => void }) {
 
           {/* Tabla */}
           <div className="rounded-xl border border-gray-200 overflow-hidden">
-            <div className="grid grid-cols-12 bg-amber-50 px-3 py-3 text-xs font-semibold text-gray-700 border-b">
-              <div className="col-span-5">Nombre</div>
-              <div className="col-span-2 text-right">Cantidad</div>
-              <div className="col-span-2 text-right">$ c/u</div>
-              <div className="col-span-2 text-right">Sub-total</div>
-              <div className="col-span-1 text-right">X</div>
-            </div>
+            <div className="overflow-x-auto">
+              <div className="min-w-[700px]">
+              <div className="grid grid-cols-12 bg-amber-50 px-3 py-3 text-xs font-semibold text-gray-700 border-b">
+                <div className="col-span-5">Nombre</div>
+                <div className="col-span-2 text-right">Cantidad</div>
+                <div className="col-span-2 text-right">$ c/u</div>
+                <div className="col-span-2 text-right">Sub-total</div>
+                <div className="col-span-1 text-right">X</div>
+              </div>
 
             {draft.items?.length ? (
               draft.items.map((it) => (
@@ -338,6 +340,8 @@ export default function CreateOrderForm({ onSent }: { onSent?: () => void }) {
               </div>
             )}
           </div>
+        </div>
+      </div>
 
           {/* Comentarios */}
           <div className="mt-4">
@@ -356,7 +360,7 @@ export default function CreateOrderForm({ onSent }: { onSent?: () => void }) {
           </div>
 
           {/* Total + enviar */}
-          <div className="mt-5 flex items-center justify-between gap-4">
+          <div className="mt-5 flex flex-col items-stretch gap-4 sm:items-center sm:justify-between">
             <div className="text-sm text-gray-900">
               Total:{" "}
               <b className="text-lg text-gray-900">
@@ -368,7 +372,7 @@ export default function CreateOrderForm({ onSent }: { onSent?: () => void }) {
               type="button"
               onClick={sendOrder}
               disabled={busy || !draft.items?.length}
-              className="rounded-xl bg-amber-500 hover:bg-amber-600 text-gray-950 font-semibold px-5 py-3 transition disabled:opacity-50"
+              className="w-full rounded-xl bg-amber-500 hover:bg-amber-600 text-gray-950 font-semibold px-5 py-3 transition disabled:opacity-50"
             >
               {busy ? "Procesando..." : "Enviar pedido"}
             </button>
