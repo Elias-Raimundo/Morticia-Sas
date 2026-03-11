@@ -115,33 +115,33 @@ export default function OrderCard({
       onKeyDown={(e) => {
         if (e.key === "Enter" || e.key === " ") onOpen(Number(order.id));
       }}
-      className="bg-white shadow-sm border border-gray-200 rounded-2xl p-4 flex flex-col gap-3 hover:shadow-md transition cursor-pointer"
+      className="bg-white shadow-sm border border-gray-200 rounded-2xl p-4 flex flex-col gap-3 hover:shadow-md transition cursor-pointer min-w-0"
     >
-      <div className="flex justify-between items-start gap-3">
-        <div>
-          <h3 className="font-semibold text-lg text-gray-900">Pedido #{orderId}</h3>
+      <div className="flex flex-col gap-3 sm:flex-row sm:justify-between sm:items-start ">
+        <div className="min-w-0">
+          <h3 className="font-semibold text-base md:text-lg text-gray-900 break-words">Pedido #{orderId}</h3>
           <p className="text-xs text-gray-500 mt-1">{formatDate(order.createdAt)}</p>
         </div>
 
         <span
-          className={`inline-flex rounded-full px-3 py-1 text-xs font-medium border ${statusStyles[order.status]}`}
+          className={`inline-flex w-fit rounded-full px-3 py-1 text-xs font-medium border ${statusStyles[order.status]}`}
         >
           {statusLabel[order.status]}
         </span>
       </div>
 
-      <p className="text-gray-600 text-sm">
+      <p className="text-gray-600 text-sm break-words">
         {(order.comments ?? order.description ?? "").trim() || "Sin comentarios"}
       </p>
 
       {canClientEdit && (
-        <div className="flex gap-2 mt-1">
+        <div className="mt-1 flex flex-col gap-2 sm:flex-row">
           <button
             onClick={(e) => {
               e.stopPropagation();
               onOpen(Number(order.id));
             }}
-            className="border border-yellow-200 px-3 py-1 rounded bg-yellow-50 hover:bg-yellow-100 text-yellow-800 text-sm"
+            className="w-full sm:w-auto border border-yellow-200 px-3 py-2 rounded bg-yellow-50 hover:bg-yellow-100 text-yellow-800 text-sm"
           >
             Editar
           </button>
@@ -153,7 +153,7 @@ export default function OrderCard({
               await deleteDraft();
             }}
             disabled={loading === "delete"}
-            className="border border-red-200 px-3 py-1 rounded bg-red-50 hover:bg-red-100 text-red-800 text-sm disabled:opacity-60"
+            className="w-full sm:w-auto border border-red-200 px-3 py-2 rounded bg-red-50 hover:bg-red-100 text-red-800 text-sm disabled:opacity-60"
           >
             {loading === "delete" ? "Eliminando..." : "Eliminar"}
           </button>
@@ -161,7 +161,7 @@ export default function OrderCard({
       )}
 
       {isAdmin && (
-        <div className="flex gap-2 mt-2">
+        <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
           {canDeliver && (
             <button
               onClick={(e) => {
@@ -169,7 +169,7 @@ export default function OrderCard({
                 run("deliver");
               }}
               disabled={loading !== null}
-              className="bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white px-3 py-1.5 rounded text-sm"
+              className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white px-3 py-2 rounded text-sm"
             >
               {loading === "deliver" ? "Entregando..." : "Entregar"}
             </button>
@@ -182,7 +182,7 @@ export default function OrderCard({
                 run("cancel");
               }}
               disabled={loading !== null}
-              className="bg-red-600 hover:bg-red-700 disabled:opacity-60 text-white px-3 py-1.5 rounded text-sm"
+              className="w-full sm:w-auto bg-red-600 hover:bg-red-700 disabled:opacity-60 text-white px-3 py-2 rounded text-sm"
             >
               {loading === "cancel" ? "Cancelando..." : "Cancelar"}
             </button>

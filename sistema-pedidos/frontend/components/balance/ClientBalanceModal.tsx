@@ -108,35 +108,41 @@ export default function ClientBalanceModal({
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50">
-      <div className="w-full max-w-4xl max-h-[90vh] rounded-2xl bg-white shadow-xl overflow-hidden flex flex-col">
-        <div className="p-5 border-b flex items-center justify-between shrink-0">
-          <div>
-            <h3 className="text-lg font-semibold text-gray-900">
-              Detalle de saldo
-            </h3>
-            {data?.user && (
-              <p className="text-sm text-gray-600">
-                {data.user.name} — {data.user.email}
-              </p>
-            )}
-          </div>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+      <div className="flex max-h-[90vh] w-[94vw] max-w-4xl flex-col overflow-hidden rounded-2xl bg-white shadow-xl">
+        {/* Header */}
+        <div className="shrink-0 border-b p-4 md:p-5">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div className="min-w-0">
+              <h3 className="text-lg font-semibold text-gray-900">
+                Detalle de saldo
+              </h3>
 
-          <button
-            onClick={onClose}
-            className="rounded-lg border px-3 py-1 text-sm text-gray-700 hover:bg-gray-50"
-          >
-            Cerrar
-          </button>
+              {data?.user && (
+                <p className="mt-1 break-all text-sm text-gray-600">
+                  {data.user.name} — {data.user.email}
+                </p>
+              )}
+            </div>
+
+            <button
+              onClick={onClose}
+              className="w-full rounded-lg border px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 sm:w-auto"
+            >
+              Cerrar
+            </button>
+          </div>
         </div>
 
-        <div className="p-5 space-y-5 overflow-y-auto">
+        {/* Body */}
+        <div className="space-y-5 overflow-y-auto p-4 md:p-5">
           {loading ? (
             <div className="text-gray-600">Cargando...</div>
           ) : !data ? (
             <div className="text-gray-600">No se pudo cargar.</div>
           ) : (
             <>
+              {/* Balance */}
               <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
                 <div className="text-sm text-gray-600">Balance actual</div>
                 <div
@@ -148,12 +154,13 @@ export default function ClientBalanceModal({
                 </div>
               </div>
 
+              {/* Registrar pago */}
               <div className="rounded-xl border p-4">
-                <h4 className="font-semibold text-gray-900 mb-3">
+                <h4 className="mb-3 font-semibold text-gray-900">
                   Registrar pago
                 </h4>
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
                   <input
                     type="number"
                     placeholder="Monto"
@@ -174,51 +181,94 @@ export default function ClientBalanceModal({
                     type="button"
                     onClick={registerPayment}
                     disabled={saving}
-                    className="rounded-lg bg-amber-500 hover:bg-amber-600 text-gray-950 font-medium px-4 py-2 disabled:opacity-60"
+                    className="rounded-lg bg-amber-500 px-4 py-2 font-medium text-gray-950 hover:bg-amber-600 disabled:opacity-60"
                   >
                     {saving ? "Guardando..." : "Registrar pago"}
                   </button>
                 </div>
               </div>
 
-              <div className="rounded-xl border overflow-hidden">
-                <div className="grid grid-cols-12 gap-2 px-4 py-3 border-b font-semibold text-sm bg-amber-50 text-gray-800">
-                  <div className="col-span-2">Fecha</div>
-                  <div className="col-span-7">Detalle</div>
-                  <div className="col-span-3 text-right">Monto</div>
-                </div>
-                <div className = "max-h-80 overflow-y-auto"></div>
-                {data.movements.length === 0 ? (
-                  <div className="p-4 text-sm text-gray-500">
-                    No hay movimientos.
-                  </div>
-                ) : (
-                  data.movements.map((m, idx) => (
-                    <div
-                      key={m.id}
-                      className={`grid grid-cols-12 gap-2 px-4 py-3 border-b text-sm items-center ${
-                        idx % 2 === 0 ? "bg-white" : "bg-gray-50/60"
-                      }`}
-                    >
-                      <div className="col-span-2 text-gray-700">
-                        {formatDate(m.createdAt)}
-                      </div>
-
-                      <div className="col-span-7 text-gray-900">
-                        {m.description}
-                      </div>
-
-                      <div
-                        className={`col-span-3 text-right font-semibold ${
-                          m.amount >= 0 ? "text-green-600" : "text-red-600"
-                        }`}
-                      >
-                        {m.amount >= 0 ? "+" : "-"}
-                        {formatMoney(Math.abs(m.amount))}
-                      </div>
+              {/* Movimientos */}
+              <div className="overflow-hidden rounded-xl border">
+                {/* Mobile */}
+                <div className="divide-y md:hidden">
+                  {data.movements.length === 0 ? (
+                    <div className="p-4 text-sm text-gray-500">
+                      No hay movimientos.
                     </div>
-                  ))
-                )}
+                  ) : (
+                    data.movements.map((m) => (
+                      <div key={m.id} className="space-y-3 p-4">
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-gray-500">Fecha</span>
+                          <span className="font-medium text-gray-900">
+                            {formatDate(m.createdAt)}
+                          </span>
+                        </div>
+
+                        <div>
+                          <div className="text-sm text-gray-500">Detalle</div>
+                          <div className="text-gray-900">{m.description}</div>
+                        </div>
+
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-gray-500">Monto</span>
+                          <span
+                            className={`font-semibold ${
+                              m.amount >= 0 ? "text-green-600" : "text-red-600"
+                            }`}
+                          >
+                            {m.amount >= 0 ? "+" : "-"}
+                            {formatMoney(Math.abs(m.amount))}
+                          </span>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+
+                {/* Desktop */}
+                <div className="hidden md:block">
+                  <div className="grid grid-cols-12 gap-2 border-b bg-amber-50 px-4 py-3 text-sm font-semibold text-gray-800">
+                    <div className="col-span-2">Fecha</div>
+                    <div className="col-span-7">Detalle</div>
+                    <div className="col-span-3 text-right">Monto</div>
+                  </div>
+
+                  <div className="max-h-80 overflow-y-auto">
+                    {data.movements.length === 0 ? (
+                      <div className="p-4 text-sm text-gray-500">
+                        No hay movimientos.
+                      </div>
+                    ) : (
+                      data.movements.map((m, idx) => (
+                        <div
+                          key={m.id}
+                          className={`grid grid-cols-12 gap-2 border-b px-4 py-3 text-sm items-center ${
+                            idx % 2 === 0 ? "bg-white" : "bg-gray-50/60"
+                          }`}
+                        >
+                          <div className="col-span-2 text-gray-700">
+                            {formatDate(m.createdAt)}
+                          </div>
+
+                          <div className="col-span-7 text-gray-900">
+                            {m.description}
+                          </div>
+
+                          <div
+                            className={`col-span-3 text-right font-semibold ${
+                              m.amount >= 0 ? "text-green-600" : "text-red-600"
+                            }`}
+                          >
+                            {m.amount >= 0 ? "+" : "-"}
+                            {formatMoney(Math.abs(m.amount))}
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
               </div>
             </>
           )}
