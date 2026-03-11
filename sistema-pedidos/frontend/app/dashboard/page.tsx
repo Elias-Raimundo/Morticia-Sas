@@ -82,18 +82,18 @@ export default function DashboardPage() {
     <div className="min-h-screen bg-gradient-to-b from-amber-50 via-white to-white">
       <div className="border-b bg-white shadow-sm">
         <div className="mx-auto max-w-6xl px-6 py-6">
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3">
             <img
               src="/logo2.jpeg"
               alt="Morticia"
-              className="w-14 h-14 rounded-lg object-cover border border-gray-200 shadow-sm"
+              className="w-14 h-14 rounded-xl object-cover md:h-20 md:w-20 "
             />
 
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900">
+            <div className="min-w-0">
+              <h1 className="text-2xl font-bold text-gray-900 md:text-4xl">
                 {isAdmin ? "Pedidos" : "Crear pedido"}
               </h1>
-              <p className="mt-1 text-sm text-gray-700">
+              <p className="mt-1 text-sm text-gray-700 md:text-base">
                 {isAdmin
                   ? "Revisá pedidos recibidos, cancelalos o marcalos como entregados."
                   : "Armá tu pedido en borrador y después envialo al administrador."}

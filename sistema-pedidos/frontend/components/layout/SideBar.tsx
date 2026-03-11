@@ -27,6 +27,7 @@ export default function Sidebar() {
       ];
 
   return (
+    <>
     <aside className="hidden md:flex w-64 bg-white border-r border-gray-200 flex-col shadow-sm">
       {/* Header */}
       <div className="p-6 border-b border-gray-100">
@@ -83,5 +84,27 @@ export default function Sidebar() {
         </button>
       </div>
     </aside>
+    <nav className="fixed bottom-0 left-0 right-0 z-50 bg-white/95 border-t border-gray-200 backdrop-blur md:hidden">
+      <div className={`grid ${isAdmin ? "grid-cols-4" : "grid-cols-3"}`}>
+        {links.map((link) => {
+          const active = pathname === link.href;
+          
+          return (
+            <Link
+              key={link.href}
+              href={link.href}
+              className ={`px-2 py-3 text-center text-xs font-medium transition ${
+                active
+                  ? "bg-amber-50 text-amber-700"
+                  : "text-gray-600"
+              }`}
+              >
+              {link.label}
+              </Link>
+          );
+        })}
+      </div>
+      </nav>
+    </>
   );
 }
