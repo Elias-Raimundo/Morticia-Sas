@@ -1,0 +1,21 @@
+{
+  "name": "Morticia-SAS",
+  "short_name": "Morticia",
+  "description": "Sistema de pedidos Morticia-SAS",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#f59e0b",
+  "icons": [
+    {
+      "src": "/logo2.jpeg",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/logo2.jpeg",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
