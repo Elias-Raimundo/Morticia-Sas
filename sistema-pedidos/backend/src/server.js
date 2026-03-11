@@ -11,6 +11,7 @@ import helmet from "helmet";
 import rateLimit from "express-rate-limit";
 import productRoutes from "./routes/product.routes.js";
 import balanceRoutes from "./routes/balance.routes.js";
+import statsRoutes from "./routes/stats.routes.js";
 
 const app = express();
 app.set("trust proxy", 1); 
@@ -50,6 +51,7 @@ app.use("/api/orders", orderRoutes);
 app.use("/api/notifications", notificationRoutes);
 app.use("/api/products", productRoutes);
 app.use("/api/balance", balanceRoutes);
+app.use("/api/stats", statsRoutes);
 
 
 app.get("/api/user/me", authMiddleware, async (req, res) => {

@@ -18,6 +18,7 @@ export default function Sidebar() {
         { href: "/dashboard", label: "Pedidos" },
         { href: "/dashboard/admin", label: "Administración" },
         { href: "/dashboard/admin/products", label: "Productos" },
+        { href: "/dashboard/admin/resumen", label: "Resumen" },
       ]
     : [
         { href: "/dashboard", label: "Crear pedido" },
