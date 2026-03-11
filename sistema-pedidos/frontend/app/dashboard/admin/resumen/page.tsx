@@ -67,7 +67,7 @@ export default function AdminResumenPage() {
         <div className="rounded-2xl border border-amber-200 bg-white shadow-sm overflow-hidden">
           <div className="h-2 bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-500" />
           <div className="p-6">
-            <h1 className="text-3xl font-bold text-gray-900">
+            <h1 className="text-2xl md:text-3xl font-bold text-gray-900">
               Resumen de ventas
             </h1>
             <p className="mt-1 text-sm text-gray-600">
@@ -158,12 +158,9 @@ export default function AdminResumenPage() {
           </div>
         </div>
 
-        {/* Tabla */}
         <div className="rounded-2xl border border-gray-200 bg-white shadow-sm overflow-hidden">
           <div className="px-5 py-4 border-b bg-gray-50">
-            <h2 className="font-semibold text-gray-900">
-              Productos vendidos
-            </h2>
+            <h2 className="font-semibold text-gray-900">Productos vendidos</h2>
             <p className="text-sm text-gray-600">
               Detalle agrupado por producto
             </p>
@@ -176,34 +173,62 @@ export default function AdminResumenPage() {
               No hay ventas para este período.
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <div className="min-w-[650px]">
-                <div className="grid grid-cols-12 gap-2 px-5 py-3 border-b bg-amber-50 text-sm font-semibold text-gray-700">
-                  <div className="col-span-6">Producto</div>
-                  <div className="col-span-3 text-right">Unidades</div>
-                  <div className="col-span-3 text-right">Facturado</div>
-                </div>
-
+            <>
+              {/* Mobile */}
+              <div className="divide-y md:hidden">
                 {data.products.map((product) => (
-                  <div
-                    key={product.productId}
-                    className="grid grid-cols-12 gap-2 px-5 py-3 border-b text-sm items-center"
-                  >
-                    <div className="col-span-6 font-medium text-gray-900">
+                  <div key={product.productId} className="p-4 space-y-2">
+                    <div className="font-semibold text-gray-900">
                       {product.productName}
                     </div>
 
-                    <div className="col-span-3 text-right text-gray-700">
-                      {Number(product.unitsSold).toLocaleString()}
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-gray-500">Unidades</span>
+                      <span className="text-gray-900 font-medium">
+                        {Number(product.unitsSold).toLocaleString()}
+                      </span>
                     </div>
 
-                    <div className="col-span-3 text-right font-semibold text-gray-900">
-                      ${Number(product.totalSold).toLocaleString()}
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-gray-500">Facturado</span>
+                      <span className="text-gray-900 font-semibold">
+                        ${Number(product.totalSold).toLocaleString()}
+                      </span>
                     </div>
                   </div>
                 ))}
               </div>
-            </div>
+
+              {/* Desktop */}
+              <div className="hidden md:block overflow-x-auto">
+                <div className="min-w-[650px]">
+                  <div className="grid grid-cols-12 gap-2 px-5 py-3 border-b bg-amber-50 text-sm font-semibold text-gray-700">
+                    <div className="col-span-6">Producto</div>
+                    <div className="col-span-3 text-right">Unidades</div>
+                    <div className="col-span-3 text-right">Facturado</div>
+                  </div>
+
+                  {data.products.map((product) => (
+                    <div
+                      key={product.productId}
+                      className="grid grid-cols-12 gap-2 px-5 py-3 border-b text-sm items-center"
+                    >
+                      <div className="col-span-6 font-medium text-gray-900">
+                        {product.productName}
+                      </div>
+
+                      <div className="col-span-3 text-right text-gray-700">
+                        {Number(product.unitsSold).toLocaleString()}
+                      </div>
+
+                      <div className="col-span-3 text-right font-semibold text-gray-900">
+                        ${Number(product.totalSold).toLocaleString()}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </>
           )}
         </div>
       </div>
