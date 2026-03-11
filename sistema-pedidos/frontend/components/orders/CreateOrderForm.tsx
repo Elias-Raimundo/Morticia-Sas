@@ -167,11 +167,20 @@ export default function CreateOrderForm({ onSent }: { onSent?: () => void }) {
       });
 
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) return toast.error(data?.error || "Error enviando pedido");
+      if (!res.ok) {
+        toast.error(data?.error || "Error enviando pedido");
+        return;
+      }
 
       toast.success("Pedido enviado ✅");
       onSent?.();
+      setComments("");
+      setDeliveryDate("");
+      setQ("");
       await load();
+    }catch(error){
+      console.error(error);
+      toast.error("Error enviando pedido");
     } finally {
       setBusy(false);
     }
