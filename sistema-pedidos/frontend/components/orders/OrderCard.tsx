@@ -12,6 +12,14 @@ interface Order {
   status: OrderStatus;
   userId: number | string;
   createdAt?: string;
+  user?:{
+    name?: string;
+    email?: string;
+  };
+  client?:{
+    name?: string;
+    email?: string;
+  };
 }
 
 const statusLabel: Record<OrderStatus, string> = {
@@ -119,8 +127,26 @@ export default function OrderCard({
     >
       <div className="flex flex-col gap-3 sm:flex-row sm:justify-between sm:items-start ">
         <div className="min-w-0">
-          <h3 className="font-semibold text-base md:text-lg text-gray-900 break-words">Pedido #{orderId}</h3>
-          <p className="text-xs text-gray-500 mt-1">{formatDate(order.createdAt)}</p>
+          {isAdmin ? (
+            <>
+              <h3 className = "break-words text-base font-semibold text-gray-900 md:text-lg">
+                {order.user?.name || order.client?.name || "Cliente"}
+              </h3>
+              <p className = "mt-1 text-xs text-gray-500">
+                Pedido #{orderId}  · {formatDate(order.createdAt)}
+              </p>
+            </>
+          ): (
+            <>
+              <h3 className="break-words text-base font-semibold text-gray-900 md:text-lg">
+                Pedido #{orderId}
+                </h3>
+              <p className="text-xs text-gray-500 mt-1">
+                {formatDate(order.createdAt)}
+                </p>
+            </>
+          )}
+          
         </div>
 
         <span
