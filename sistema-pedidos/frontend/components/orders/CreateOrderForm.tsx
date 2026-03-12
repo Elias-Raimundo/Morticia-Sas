@@ -317,9 +317,16 @@ export default function CreateOrderForm({ onSent }: { onSent?: () => void }) {
                       type="number"
                       min={1}
                       className="w-20 rounded-lg border border-gray-300 px-2 py-1 text-right text-gray-900"
-                      value={it.quantity}
+                      defaultValue={it.quantity}
                       disabled={busy}
-                      onChange={(e) => updateQty(it.id, Number(e.target.value))}
+                      onBlur={(e) => {
+                        const nextQty = Number(e.target.value);
+                        if (!Number.isFinite(nextQty) || nextQty <1){
+                          e.target.value = String(it.quantity);
+                          return;
+                        }
+                        updateQty(it.id, nextQty);
+                      }}
                     />
                   </div>
 

@@ -146,6 +146,10 @@ export default function DashboardPage() {
                   <option value="cancelled">Cancelados</option>
                 </select>
 
+                <div className ="min-w-0">
+                  <label className= "block text-sm font-medium text-gray-700 mb-1">
+                    Desde
+                  </label>
                 <input
                   type="date"
                   value={dateFrom}
@@ -153,12 +157,20 @@ export default function DashboardPage() {
                   className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900"
                 />
 
+                </div>
+
+                <div className ="min-w-0">
+                  <label className= "block text-sm font-medium text-gray-700 mb-1">
+                    Hasta
+                  </label>
                 <input
                   type="date"
                   value={dateTo}
                   onChange={(e) => setDateTo(e.target.value)}
                   className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900"
                 />
+
+                </div>
 
                 <button
                   type="button"

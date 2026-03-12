@@ -85,8 +85,8 @@ export default function BalancePage() {
         </div>
 
         <div className="lg:col-span-8 rounded-2xl border border-gray-200 bg-white shadow-sm p-5 md:p-6">
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            <div>
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-4">
+            <div className = "min-w-0">
               <label className="block text-sm text-gray-700 mb-1">Desde</label>
               <input
                 type="date"
@@ -96,7 +96,7 @@ export default function BalancePage() {
               />
             </div>
 
-            <div>
+            <div className = "min-w-0">
               <label className="block text-sm text-gray-700 mb-1">Hasta</label>
               <input
                 type="date"
@@ -106,6 +106,7 @@ export default function BalancePage() {
               />
             </div>
 
+            <div className ="min-w-0 flex items-end">
             <button
               type="button"
               onClick={load}
@@ -113,7 +114,9 @@ export default function BalancePage() {
             >
               Filtrar
             </button>
+            </div>
 
+            <div className ="min-w-0 flex items-end">
             <button
               type="button"
               onClick={() => {
@@ -124,6 +127,7 @@ export default function BalancePage() {
             >
               Limpiar
             </button>
+            </div>
           </div>
         </div>
       </div>

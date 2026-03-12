@@ -60,6 +60,10 @@ export default function HomePage() {
               </div>
             </div>
           </div>
+
+          <footer className="text-xs text-gray-400 text-center py-4">
+            © {new Date().getFullYear()} Morticia — Sistema desarrollado por Elias Raimundo
+          </footer>
         </div>
       </div>
     </main>
