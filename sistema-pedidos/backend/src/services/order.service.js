@@ -341,7 +341,7 @@ export const sendOrder = async (orderId, userId) => {
     console.error("Drbug result.order:", orderToEmail);
     console.error("Drbug admins:", adminsToEmail);
   }
-})();
+});
   return result.order;
 }
 
