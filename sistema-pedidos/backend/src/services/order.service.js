@@ -310,7 +310,7 @@ export const sendOrder = async (orderId, userId) => {
   const adminsToEmail = result.admins;
 
   // 2) PDF + Email (afuera de la TX)
-  (async () => {
+  setImmediate(async () => {
     try {
       const pdfBuffer = await buildOrderPdf(orderToEmail);
 
