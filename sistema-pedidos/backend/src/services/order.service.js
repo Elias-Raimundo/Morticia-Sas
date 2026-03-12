@@ -306,9 +306,42 @@ export const sendOrder = async (orderId, userId) => {
     return { order: updated, admins };
   });
 
+  const orderToEmail = result.order;
+  const adminsToEmail = result.admins;
+
   // 2) PDF + Email (afuera de la TX)
+  (async () => {
+    try {
+      const pdfBuffer = await buildOrderPdf(orderToEmail);
 
+      const adminEmails = adminsToEmail.map((a) => a.email).filter(Boolean);
 
+      if (adminEmails.length > 0) {
+        await sendOrderEmail({
+          to: adminEmails.join(","),
+          subject: `📦 Pedido #${orderToEmail.id} - ${orderToEmail.user?.name ?? "Cliente"}`,
+          html: `
+            <div style="font-family: Arial, sans-serif;">
+            <h2>Nuevo pedido recibido</h2>
+            <p><b>Pedido:</b> #${orderToEmail.id}</p>
+            <p><b>Cliente:</b> ${orderToEmail.user?.name ?? "-"}</p>
+            <p><b>Email:</b> ${orderToEmail.user?.email ?? "-"}</p>
+            <p>Adjunto va el PDF con el detalle del pedido.</p>
+          </div>
+        `,
+        replyTo: orderToEmail.user?.email,
+        pdfBuffer,
+        filename: `pedido-${orderToEmail.id}.pdf`,
+      });
+    }
+  } catch (e) {
+    // producción: NO rompas el flujo si falla el mail, solo logueá
+    
+    console.error("No se pudo enviar email/PDF:", e);
+    console.error("Drbug result.order:", orderToEmail);
+    console.error("Drbug admins:", adminsToEmail);
+  }
+})();
   return result.order;
 }
 
