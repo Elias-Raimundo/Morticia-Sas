@@ -173,11 +173,10 @@ export default function CreateOrderForm({ onSent }: { onSent?: () => void }) {
       }
 
       toast.success("Pedido enviado ✅");
-      onSent?.();
-      setComments("");
-      setDeliveryDate("");
-      setQ("");
-      await load();
+      setTimeout(() => {
+        window.location.href = "/dashboard/historial";
+      }, 700);
+
     }catch(error){
       console.error(error);
       toast.error("Error enviando pedido");
