@@ -17,7 +17,7 @@ export default function DashboardPage() {
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [selectedOrderId, setSelectedOrderId] = useState<number | null>(null);
 
-  const [statusFilter, setStatusFilter] = useState("all");
+  const [clientFilter, setClientFilter] = useState("");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
 
@@ -60,8 +60,6 @@ export default function DashboardPage() {
   const isAdmin = user.role === "admin";
 
   const filteredOrders = orders.filter((order) => {
-    const matchesStatus =
-      statusFilter === "all" ? true : order.status === statusFilter;
 
     const orderDate = order.createdAt ? new Date(order.createdAt) : null;
 
@@ -75,7 +73,16 @@ export default function DashboardPage() {
         ? true
         : orderDate <= new Date(`${dateTo}T23:59:59`);
 
-    return matchesStatus && matchesFrom && matchesTo;
+    const q = clientFilter.trim().toLowerCase();
+
+    const clientName =
+      order.user?.name?.toLowerCase()||
+      order.client?.name?.toLowerCase() ||
+      "";
+
+    const matchesClient = !q || clientName.includes(q);
+
+    return matchesClient && matchesFrom && matchesTo;
   });
 
   return (
@@ -134,48 +141,48 @@ export default function DashboardPage() {
                 </p>
               </div>
 
-              <div className="flex items-center gap-3 flex-wrap justify-end">
-                <select
-                  value={statusFilter}
-                  onChange={(e) => setStatusFilter(e.target.value)}
-                  className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900"
-                >
-                  <option value="all">Todos</option>
-                  <option value="confirmed">Confirmados</option>
-                  <option value="delivered">Entregados</option>
-                  <option value="cancelled">Cancelados</option>
-                </select>
-
-                <div className ="min-w-0">
-                  <label className= "block text-sm font-medium text-gray-700 mb-1">
-                    Desde
+              <div className="flex items-end gap-3 flex-wrap justify-end">
+                <div className="min-w-0">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Cliente
                   </label>
-                <input
-                  type="date"
-                  value={dateFrom}
-                  onChange={(e) => setDateFrom(e.target.value)}
-                  className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900"
-                />
-
+                  <input
+                    type="text"
+                    value={clientFilter}
+                    onChange={(e) => setClientFilter(e.target.value)}
+                    placeholder="Buscar cliente..."
+                    className="w-full min-w-0 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400"
+                  />
                 </div>
 
-                <div className ="min-w-0">
-                  <label className= "block text-sm font-medium text-gray-700 mb-1">
+                <div className="min-w-0">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Desde
+                  </label>
+                  <input
+                    type="date"
+                    value={dateFrom}
+                    onChange={(e) => setDateFrom(e.target.value)}
+                    className="w-full min-w-0 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900"
+                  />
+                </div>
+
+                <div className="min-w-0">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
                     Hasta
                   </label>
-                <input
-                  type="date"
-                  value={dateTo}
-                  onChange={(e) => setDateTo(e.target.value)}
-                  className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900"
-                />
-
+                  <input
+                    type="date"
+                    value={dateTo}
+                    onChange={(e) => setDateTo(e.target.value)}
+                    className="w-full min-w-0 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900"
+                  />
                 </div>
 
                 <button
                   type="button"
                   onClick={() => {
-                    setStatusFilter("all");
+                    setClientFilter("");
                     setDateFrom("");
                     setDateTo("");
                   }}
