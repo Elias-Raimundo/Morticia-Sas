@@ -49,7 +49,15 @@ export default function HistorialPage() {
 
   const isAdmin = user.role === "admin";
 
+  
+
   const filteredOrders = orders.filter((order) => {
+    
+    const matchesClient = 
+    !clientFilter ||
+    order.user?.name?.toLowerCase().includes(clientFilter.toLowerCase())||
+    order.client?.name?.toLowerCase().includes(clientFilter.toLowerCase());
+
     const orderDate = order.createdAt ? new Date(order.createdAt) : null;
 
     const matchesFrom =
@@ -65,21 +73,6 @@ export default function HistorialPage() {
     if (!isAdmin) {
       return matchesFrom && matchesTo;
     }
-
-    const q = clientFilter.trim().toLowerCase();
-
-    const clientName =
-      order.user?.name?.toLowerCase() ||
-      order.client?.name?.toLowerCase() ||
-      "";
-
-    const clientEmail =
-      order.user?.email?.toLowerCase() ||
-      order.client?.email?.toLowerCase() ||
-      "";
-
-    const matchesClient =
-      !q || clientName.includes(q) || clientEmail.includes(q);
 
     return matchesFrom && matchesTo && matchesClient;
   });
@@ -129,7 +122,7 @@ export default function HistorialPage() {
                     type="text"
                     value={clientFilter}
                     onChange={(e) => setClientFilter(e.target.value)}
-                    placeholder="Buscar por nombre"
+                    placeholder="Buscar cliente..."
                     className="w-full min-w-0 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400"
                   />
                 </div>
