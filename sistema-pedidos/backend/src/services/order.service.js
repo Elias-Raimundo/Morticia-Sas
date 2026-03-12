@@ -307,36 +307,7 @@ export const sendOrder = async (orderId, userId) => {
   });
 
   // 2) PDF + Email (afuera de la TX)
-  try {
-    const pdfBuffer = await buildOrderPdf(result.order);
 
-    const adminEmails = result.admins.map((a) => a.email).filter(Boolean);
-
-    if (adminEmails.length > 0) {
-      await sendOrderEmail({
-        to: adminEmails.join(","),
-        subject: `📦 Pedido #${result.order.id} - ${result.order.user?.name ?? "Cliente"}`,
-        html: `
-        <div style="font-family: Arial, sans-serif;">
-          <h2>Nuevo pedido recibido</h2>
-          <p><b>Pedido:</b> #${result.order.id}</p>
-          <p><b>Cliente:</b> ${result.order.user?.name ?? "-"}</p>
-          <p><b>Email:</b> ${result.order.user?.email ?? "-"}</p>
-          <p>Adjunto va el PDF con el detalle del pedido.</p>
-        </div>
-      `,
-        replyTo: result.order.user?.email,
-        pdfBuffer,
-        filename: `pedido-${result.order.id}.pdf`,
-      });
-    }
-  } catch (e) {
-    // producción: NO rompas el flujo si falla el mail, solo logueá
-    
-    console.error("No se pudo enviar email/PDF:", e);
-    console.error("Drbug result.order:", result?.order);
-    console.error("Drbug admins:", result?.admins);
-  }
 
   return result.order;
 }
