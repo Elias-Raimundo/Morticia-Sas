@@ -15,7 +15,7 @@ export default function HistorialPage() {
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [selectedOrderId, setSelectedOrderId] = useState<number | null>(null);
 
-  const [statusFilter, setStatusFilter] = useState("all");
+  const [clientFilter, setClientFilter] = useState("all");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
 
@@ -50,9 +50,6 @@ export default function HistorialPage() {
   const isAdmin = user.role === "admin";
 
   const filteredOrders = orders.filter((order) => {
-    const matchesStatus =
-      statusFilter === "all" ? true : order.status === statusFilter;
-
     const orderDate = order.createdAt ? new Date(order.createdAt) : null;
 
     const matchesFrom =
@@ -65,7 +62,26 @@ export default function HistorialPage() {
         ? true
         : orderDate <= new Date(`${dateTo}T23:59:59`);
 
-    return matchesStatus && matchesFrom && matchesTo;
+    if (!isAdmin) {
+      return matchesFrom && matchesTo;
+    }
+
+    const q = clientFilter.trim().toLowerCase();
+
+    const clientName =
+      order.user?.name?.toLowerCase() ||
+      order.client?.name?.toLowerCase() ||
+      "";
+
+    const clientEmail =
+      order.user?.email?.toLowerCase() ||
+      order.client?.email?.toLowerCase() ||
+      "";
+
+    const matchesClient =
+      !q || clientName.includes(q) || clientEmail.includes(q);
+
+    return matchesFrom && matchesTo && matchesClient;
   });
 
   return (
@@ -104,23 +120,34 @@ export default function HistorialPage() {
             </div>
 
             <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-4">
-              <div className = "min-w-0">
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Estado
-                </label>
-                <select
-                  value={statusFilter}
-                  onChange={(e) => setStatusFilter(e.target.value)}
-                  className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900"
-                >
-                  <option value="all">Todos</option>
-                  <option value="confirmed">Confirmados</option>
-                  <option value="delivered">Entregados</option>
-                  <option value="cancelled">Cancelados</option>
-                </select>
-              </div>
+              {isAdmin ? (
+                <div className="min-w-0">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Cliente
+                  </label>
+                  <input
+                    type="text"
+                    value={clientFilter}
+                    onChange={(e) => setClientFilter(e.target.value)}
+                    placeholder="Buscar por nombre o email"
+                    className="w-full min-w-0 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400"
+                  />
+                </div>
+              ) : (
+                <div className="min-w-0">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Estado
+                  </label>
+                  <input
+                    type="text"
+                    value="Todos"
+                    disabled
+                    className="w-full rounded-lg border border-gray-300 bg-gray-50 px-3 py-2 text-sm text-gray-500"
+                  />
+                </div>
+              )}
 
-              <div className= "min-w-0">
+              <div className="min-w-0">
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Desde
                 </label>
@@ -128,11 +155,11 @@ export default function HistorialPage() {
                   type="date"
                   value={dateFrom}
                   onChange={(e) => setDateFrom(e.target.value)}
-                  className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900"
+                  className="w-full min-w-0 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900"
                 />
               </div>
 
-              <div className ="min-w-0">
+              <div className="min-w-0">
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Hasta
                 </label>
@@ -140,15 +167,15 @@ export default function HistorialPage() {
                   type="date"
                   value={dateTo}
                   onChange={(e) => setDateTo(e.target.value)}
-                  className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900"
+                  className="w-full min-w-0 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900"
                 />
               </div>
 
-              <div className="flex items-end">
+              <div className="min-w-0 flex items-end">
                 <button
                   type="button"
                   onClick={() => {
-                    setStatusFilter("all");
+                    setClientFilter("");
                     setDateFrom("");
                     setDateTo("");
                   }}

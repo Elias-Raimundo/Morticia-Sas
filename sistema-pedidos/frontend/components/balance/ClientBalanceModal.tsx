@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { apiFetch } from "@/lib/api";
 import { toast } from "sonner";
+import OrderDetailsModal from "../orders/OrderDetailsModal";
 
 type Movement = {
   id: number;
@@ -39,6 +40,19 @@ export default function ClientBalanceModal({
   const [amount, setAmount] = useState("");
   const [description, setDescription] = useState("");
   const [saving, setSaving] = useState(false);
+
+  const [orderOpen, setOrderOpen] = useState(false);
+  const [selectedOrderId, setSelectedOrderId]= useState<number | null>(null);
+
+  const openOrder = (id:number) => {
+    setSelectedOrderId(id);
+    setOrderOpen(true);
+  };
+
+  const getOrderIdFromDescription = (description: string) => {
+    const match = description.match(/Pedido #(\d+)/i);
+    return match ? Number(match[1]) : null;
+  };
 
   const load = async () => {
     if (!userId) return;
@@ -108,6 +122,7 @@ export default function ClientBalanceModal({
   if (!open) return null;
 
   return (
+    <>
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
       <div className="flex max-h-[90vh] w-[94vw] max-w-4xl flex-col overflow-hidden rounded-2xl bg-white shadow-xl">
         {/* Header */}
@@ -208,7 +223,17 @@ export default function ClientBalanceModal({
 
                         <div>
                           <div className="text-sm text-gray-500">Detalle</div>
-                          <div className="text-gray-900">{m.description}</div>
+                          {getOrderIdFromDescription(m.description) ? (
+                            <button
+                              type="button"
+                              onClick={() => openOrder(getOrderIdFromDescription(m.description)!)}
+                              className="text-left text-gray-900 underline underline-offset-2 hover:text-amber-700"
+                            >
+                              {m.description}
+                            </button>
+                          ) : (
+                            <div className="text-gray-900">{m.description}</div>
+                          )}
                         </div>
 
                         <div className="flex items-center justify-between text-sm">
@@ -253,7 +278,17 @@ export default function ClientBalanceModal({
                           </div>
 
                           <div className="col-span-7 text-gray-900">
-                            {m.description}
+                            {getOrderIdFromDescription(m.description) ? (
+                              <button
+                                type="button"
+                                onClick={() => openOrder(getOrderIdFromDescription(m.description)!)}
+                                className="text-left underline underline-offset-2 hover:text-amber-700"
+                              >
+                                {m.description}
+                              </button>
+                            ) : (
+                              m.description
+                            )}
                           </div>
 
                           <div
@@ -264,7 +299,7 @@ export default function ClientBalanceModal({
                             {m.amount >= 0 ? "+" : "-"}
                             {formatMoney(Math.abs(m.amount))}
                           </div>
-                        </div>
+                        </div>              
                       ))
                     )}
                   </div>
@@ -275,5 +310,12 @@ export default function ClientBalanceModal({
         </div>
       </div>
     </div>
+      <OrderDetailsModal
+        open= {orderOpen}
+        orderId={selectedOrderId}
+        onClose={() => setOrderOpen(false)}
+        isAdmin
+      /> 
+    </>
   );
 }
