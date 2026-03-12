@@ -1,31 +1,39 @@
-import nodemailer from "nodemailer";
+import { Resend } from "resend";
 
+const resend = new Resend(process.env.RESEND_API_KEY);
 
-export const transporter = nodemailer.createTransport({
-  host: "smtp.gmail.com",
-  port:587,
-  secure:false,
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS,
-  },
-});
+export async function sendOrderEmail({
+  to,
+  subject,
+  html,
+  replyTo,
+  pdfBuffer,
+  filename,
+}) {
+  const toList = Array.isArray(to)
+    ? to
+    : String(to)
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean);
 
-export async function sendOrderEmail({ to, subject, html, replyTo, pdfBuffer, filename }) {
-  const toList = Array.isArray(to) ? to : String(to).split(",").map(s => s.trim());
-
-  return transporter.sendMail({
-    from: `"Morticia-SAS" <${process.env.EMAIL_USER}>`,
+  const { data, error } = await resend.emails.send({
+    from: "Morticia <onboarding@resend.dev>",
     to: toList,
-    replyTo: replyTo || undefined,
     subject,
     html,
+    replyTo: replyTo || undefined,
     attachments: [
       {
         filename,
         content: pdfBuffer,
-        contentType: "application/pdf",
       },
     ],
   });
+
+  if (error) {
+    throw new Error(error.message || "Error enviando email con Resend");
+  }
+
+  return data;
 }
