@@ -310,7 +310,7 @@ export const sendOrder = async (orderId, userId) => {
   const adminsToEmail = result.admins;
 
   // 2) PDF + Email (afuera de la TX)
-  setImmediate(async () => {
+  void(async () => {
     try {
       const pdfBuffer = await buildOrderPdf(orderToEmail);
 
@@ -341,7 +341,7 @@ export const sendOrder = async (orderId, userId) => {
     console.error("Drbug result.order:", orderToEmail);
     console.error("Drbug admins:", adminsToEmail);
   }
-});
+})();
   return result.order;
 }
 

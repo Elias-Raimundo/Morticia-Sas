@@ -277,7 +277,6 @@ export default function CreateOrderForm({ onSent }: { onSent?: () => void }) {
               min={today}
               value={deliveryDate}
               onChange={(e) => setDeliveryDate(e.target.value)}
-              onBlur={saveDraftMeta}
               disabled={busy}
             />
           </div>
@@ -368,7 +367,6 @@ export default function CreateOrderForm({ onSent }: { onSent?: () => void }) {
               rows={3}
               value={comments}
               onChange={(e) => setComments(e.target.value)}
-              onBlur={saveDraftMeta}
               disabled={busy}
               placeholder="Ej: entregar por la mañana..."
             />
