@@ -119,8 +119,8 @@ export default function HistorialPage() {
               </span>
             </div>
 
-            <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-4">
-              {isAdmin ? (
+            <div className={`grid grid-cols-1 gap-3 md:grid-cols-2 ${ isAdmin ? "lg:grid-cols-4" : "lg:grid-cols-3"}`}>
+              {isAdmin && (
                 <div className="min-w-0">
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Cliente
@@ -129,20 +129,8 @@ export default function HistorialPage() {
                     type="text"
                     value={clientFilter}
                     onChange={(e) => setClientFilter(e.target.value)}
-                    placeholder="Buscar por nombre o email"
+                    placeholder="Buscar por nombre"
                     className="w-full min-w-0 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400"
-                  />
-                </div>
-              ) : (
-                <div className="min-w-0">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Estado
-                  </label>
-                  <input
-                    type="text"
-                    value="Todos"
-                    disabled
-                    className="w-full rounded-lg border border-gray-300 bg-gray-50 px-3 py-2 text-sm text-gray-500"
                   />
                 </div>
               )}
@@ -175,7 +163,7 @@ export default function HistorialPage() {
                 <button
                   type="button"
                   onClick={() => {
-                    setClientFilter("");
+                    if (isAdmin)  setClientFilter("");
                     setDateFrom("");
                     setDateTo("");
                   }}
