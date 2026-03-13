@@ -49,8 +49,8 @@ export default function CreateOrderForm({ onSent }: { onSent?: () => void }) {
     return products.filter((p) => p.name.toLowerCase().includes(s));
   }, [q, products]);
 
-  const load = async () => {
-    setLoading(true);
+  const load = async (showLoader = false) => {
+    if (showLoader) setLoading(true);
     try {
       const [draftRes, prodRes] = await Promise.all([
         apiFetch("/api/orders/my/draft"),
@@ -70,12 +70,12 @@ export default function CreateOrderForm({ onSent }: { onSent?: () => void }) {
     } catch (e: any) {
       toast.error(e?.message || "Error cargando datos");
     } finally {
-      setLoading(false);
+      if (showLoader) setLoading(false);
     }
   };
 
   useEffect(() => {
-    load();
+    load(true);
   }, []);
 
   const addProduct = async (productId: number) => {
@@ -173,9 +173,9 @@ export default function CreateOrderForm({ onSent }: { onSent?: () => void }) {
       }
 
       toast.success("Pedido enviado ✅");
-      setTimeout(() => {
-        window.location.href = "/dashboard/historial";
-      }, 700);
+      setComments("");
+      setDeliveryDate("");
+      await load();
 
     }catch(error){
       console.error(error);
