@@ -18,7 +18,7 @@ export async function sendOrderEmail({
         .filter(Boolean);
 
   const { data, error } = await resend.emails.send({
-    from: "Morticia <onboarding@resend.dev>",
+    from: "Morticia <pedidos@morticia-sas.com>",
     to: toList,
     subject,
     html,
