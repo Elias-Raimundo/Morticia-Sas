@@ -2,6 +2,15 @@
 
 import { useEffect, useState } from "react";
 import { apiFetch } from "@/lib/api";
+import {
+  ResponsiveContainer,
+  LineChart,
+  Line,
+  CartesianGrid,
+  XAxis,
+  YAxis,
+  Tooltip,
+} from "recharts";
 
 type ProductStat = {
   productId: number;
@@ -10,8 +19,18 @@ type ProductStat = {
   totalSold: number;
 };
 
+type SalesByDay = {
+  date: string;
+  total: number;
+  orders: number;
+};
+
 type StatsResponse = {
   products: ProductStat[];
+  salesByDay: SalesByDay[];
+  ordersCount: number;
+  activeClients: number;
+  averageTicket: number;
 };
 
 export default function AdminResumenPage() {
@@ -60,13 +79,34 @@ export default function AdminResumenPage() {
 
   const totalProducts = data?.products?.length ?? 0;
 
+  const ordersCount = data?.ordersCount ?? 0;
+  const activeClients = data?.activeClients ?? 0;
+  const averageTicket = data?.averageTicket ?? 0;
+
+  const formatLocalDate = (value: string) => {
+  const [year, month, day] = value.split("-").map(Number);
+  const localDate = new Date(year, month - 1, day);
+
+  return localDate.toLocaleDateString("es-AR", {
+    day: "2-digit",
+    month: "2-digit",
+  });
+};
+
+const formatLocalDateFull = (value: string) => {
+  const [year, month, day] = value.split("-").map(Number);
+  const localDate = new Date(year, month - 1, day);
+
+  return localDate.toLocaleDateString("es-AR");
+};
+
   return (
-    <div className="min-h-screen bg-gradient-to-b from-amber-50 via-white to-white p-6">
+    <div className="min-h-screen bg-gradient-to-b from-amber-50 via-white to-white p-4 md:p-6">
       <div className="mx-auto max-w-6xl space-y-6">
         {/* Header */}
         <div className="rounded-2xl border border-amber-200 bg-white shadow-sm overflow-hidden">
           <div className="h-2 bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-500" />
-          <div className="p-6">
+          <div className="p-5 md:p-6">
             <h1 className="text-2xl md:text-3xl font-bold text-gray-900">
               Resumen de ventas
             </h1>
@@ -135,7 +175,7 @@ export default function AdminResumenPage() {
         </div>
 
         {/* Tarjetas */}
-        <div className="grid gap-4 md:grid-cols-3">
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           <div className="rounded-2xl border border-gray-200 bg-white shadow-sm p-5">
             <p className="text-sm text-gray-500">Total facturado</p>
             <p className="mt-2 text-3xl font-bold text-gray-900">
@@ -156,8 +196,16 @@ export default function AdminResumenPage() {
               {Number(totalProducts).toLocaleString()}
             </p>
           </div>
+
+          <div className="rounded-2xl border border-gray-200 bg-white shadow-sm p-5">
+            <p className="text-sm text-gray-500">Pedidos del período</p>
+            <p className="mt-2 text-3xl font-bold text-gray-900">
+              {Number(ordersCount).toLocaleString()}
+            </p>
+          </div>
         </div>
 
+        {/* Productos vendidos */}
         <div className="rounded-2xl border border-gray-200 bg-white shadow-sm overflow-hidden">
           <div className="px-5 py-4 border-b bg-gray-50">
             <h2 className="font-semibold text-gray-900">Productos vendidos</h2>
@@ -229,6 +277,63 @@ export default function AdminResumenPage() {
                 </div>
               </div>
             </>
+          )}
+        </div>
+
+        {/* Gráfico */}
+        <div className="rounded-2xl border border-gray-200 bg-white shadow-sm p-5">
+          <div className="mb-4">
+            <h2 className="font-semibold text-gray-900">Ventas por día</h2>
+            <p className="text-sm text-gray-600">
+              Evolución del período seleccionado
+            </p>
+          </div>
+
+          {loading ? (
+            <div className="p-6 text-gray-600">Cargando gráfico...</div>
+          ) : !data?.salesByDay?.length ? (
+            <div className="p-6 text-gray-500">
+              No hay datos para mostrar en el gráfico.
+            </div>
+          ) : (
+            <div className="h-72">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={data.salesByDay}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis
+                    dataKey="date"
+                    tickFormatter={(value) => formatLocalDate(value)}
+                  />
+                  <YAxis />
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: "#fff",
+                      borderRadius: "12px",
+                      border: "1px solid #e5e7eb",
+                    }}
+                    labelStyle={{
+                      color: "#000", // 🔥 más oscuro (gris-900)
+                      fontWeight: 700,
+                    }}
+                    itemStyle={{
+                      color: "#374151",
+                    }}
+                    formatter={(value) =>
+                      `$${Number(value).toLocaleString()}`
+                    }
+                    labelFormatter={(label) =>
+                      formatLocalDateFull(label)}
+                    
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="total"
+                    strokeWidth={3}
+                    dot={false}
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
           )}
         </div>
       </div>

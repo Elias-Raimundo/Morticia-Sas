@@ -20,7 +20,17 @@ export const getMyOrders = async (userId) => {
       status: { not: "draft" },   
     },
     include: {
-      items: true},
+      items: {
+        include: {
+          product: {
+            select: {
+              id:true,
+              name:true,
+            },
+          },
+        },
+      },
+    },
     orderBy: {
       createdAt: "desc"
     },
@@ -270,7 +280,9 @@ export const sendOrder = async (orderId, userId) => {
     // ✅ Guardamos updated con include (así el PDF tiene todo bien)
     const updated = await tx.order.update({
       where: { id },
-      data: { status: "confirmed" },
+      data: { status: "confirmed",
+              createdAt: new Date(),
+       },
       include: {
         user: { select: { id: true, name: true, email: true , phone: true, dniCuil: true, address: true} },
         items: { include: { product: true } },

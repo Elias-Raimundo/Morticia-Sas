@@ -22,5 +22,5 @@ export default function AdminLayout({ children }: Props) {
 
   if (!user || user.role !== "admin") return null;
 
-  return <>{children}</>;
+  return  <>{children}</>;
 }

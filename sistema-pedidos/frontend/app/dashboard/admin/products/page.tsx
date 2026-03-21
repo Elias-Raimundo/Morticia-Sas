@@ -11,6 +11,11 @@ type Product = {
   price: number;
   stock: number;
   active: boolean;
+  categoryId?: number | null;
+  category?: {
+    id: number;
+    name: string;
+  } | null;
 };
 
 type EditForm = {
@@ -18,6 +23,12 @@ type EditForm = {
   unit: string;
   price: string;
   stock: string; 
+  categoryId: string;
+};
+
+type Category = {
+  id: number;
+  name: string;
 };
 
 export default function AdminProductsPage() {
@@ -28,6 +39,8 @@ export default function AdminProductsPage() {
   const [unit, setUnit] = useState("");
   const [price, setPrice] = useState("");
   const [stock, setStock] = useState("");
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [categoryId, setCategoryId] = useState("");
 
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editForm, setEditForm] = useState<EditForm>({
@@ -35,14 +48,21 @@ export default function AdminProductsPage() {
     unit: "",
     price: "",
     stock: "",
+    categoryId: "",
   });
 
   const load = async () => {
     setLoading(true);
     try {
-      const res = await apiFetch("/api/products/admin");
-      const data = await res.json();
-      setItems(Array.isArray(data) ? data : []);
+      const [productsRes, categoriesRes] = await Promise.all([
+        apiFetch("/api/products/admin"),
+        apiFetch("/api/categories"),
+      ]);
+
+      const productsData = await productsRes.json().catch(() => []);
+      const categoriesData = await categoriesRes.json().catch(() => []);
+      setItems(Array.isArray(productsData) ? productsData : []);
+      setCategories(Array.isArray(categoriesData) ? categoriesData : []);
     } finally {
       setLoading(false);
     }
@@ -60,6 +80,7 @@ export default function AdminProductsPage() {
         unit,
         price: Number(price),
         stock: Number(stock),
+        categoryId: categoryId ? Number(categoryId) : null,
       }),
     });
 
@@ -73,6 +94,7 @@ export default function AdminProductsPage() {
     setUnit("");
     setPrice("");
     setStock("");
+    setCategoryId("");
     await load();
   };
 
@@ -98,6 +120,7 @@ export default function AdminProductsPage() {
       unit: p.unit,
       price: String(p.price),
       stock: String(p.stock),
+      categoryId: p.categoryId ? String(p.categoryId) : "",
     });
   };
 
@@ -108,6 +131,7 @@ export default function AdminProductsPage() {
       unit: "",
       price: "",
       stock: "",
+      categoryId: "",
     });
   };
 
@@ -119,6 +143,7 @@ export default function AdminProductsPage() {
         unit: editForm.unit,
         price: Number(editForm.price),
         stock: Number(editForm.stock),
+        categoryId: editForm.categoryId ? Number(editForm.categoryId) : null,
       }),
     });
 
@@ -161,7 +186,7 @@ export default function AdminProductsPage() {
         </div>
 
         <div className="p-5">
-          <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-6">
             <input
               className="border border-gray-300 bg-white px-3 py-2 rounded-lg text-gray-900 placeholder:text-gray-400"
               placeholder="Nombre"
@@ -189,6 +214,18 @@ export default function AdminProductsPage() {
               value={stock}
               onChange={(e) => setStock(e.target.value)}
             />
+            <select
+              className="border border-gray-300 bg-white px-3 py-2 rounded-lg text-gray-500"
+              value = {categoryId}
+              onChange={(e) => setCategoryId(e.target.value)}
+            >
+              <option value = "">Seleccionar categoría</option>
+              {categories.map((cat) => (
+                <option key={cat.id} value={cat.id}>
+                  {cat.name}
+                </option>
+              ))}
+            </select>
 
             <button
               className="w-full md:w-auto rounded-lg px-4 py-2 font-medium bg-amber-500 hover:bg-amber-600 text-gray-950 transition"
@@ -205,7 +242,7 @@ export default function AdminProductsPage() {
         <div className="px-5 py-4 border-b bg-gray-50">
           <h2 className="font-semibold text-gray-900">Listado de productos</h2>
           <p className="text-sm text-gray-600">
-            Edita nombre, unidad, precio, stock y activación
+            Edita nombre, unidad, categoría, precio, stock y activación
           </p>
         </div>
 
@@ -255,6 +292,20 @@ export default function AdminProductsPage() {
                             setEditForm((prev) => ({ ...prev, stock: e.target.value }))
                           }
                         />
+                        <select
+                          className="w-full border border-gray-300 rounded-lg px-3 py-2 text-gray-900"
+                          value={editForm.categoryId}
+                          onChange={(e) =>
+                            setEditForm((prev) => ({ ...prev, categoryId: e.target.value }))
+                          }
+                        >
+                          <option value="">Seleccionar categoría</option>
+                          {categories.map((cat) => (
+                            <option key={cat.id} value={cat.id}>
+                              {cat.name}
+                            </option>
+                          ))}
+                        </select>
                       </>
                     ) : (
                       <>
@@ -264,6 +315,10 @@ export default function AdminProductsPage() {
                           <div className="text-gray-500">Unidad</div>
                           <div className="text-right text-gray-900">{p.unit}</div>
 
+                          <div className="text-gray-500">Categoría</div>
+                            <div className="text-right text-gray-900">
+                              {p.category?.name || "Sin categoría"}
+                            </div>
                           <div className="text-gray-500">Precio</div>
                           <div className="text-right text-gray-900">
                             ${Number(p.price).toLocaleString()}
@@ -333,10 +388,11 @@ export default function AdminProductsPage() {
             <div className="hidden md:block overflow-x-auto">
               <div className="min-w-[850px]">
                 <div className="grid grid-cols-12 gap-2 px-4 py-3 border-b font-semibold text-sm bg-amber-50 text-gray-800">
-                  <div className="col-span-3">Nombre</div>
+                  <div className="col-span-2">Nombre</div>
                   <div className="col-span-2">Unidad</div>
+                  <div className="col-span-2">Categoría</div>
                   <div className="col-span-2">Precio</div>
-                  <div className="col-span-2">Stock</div>
+                  <div className="col-span-1">Stock</div>
                   <div className="col-span-1 text-right">Act.</div>
                   <div className="col-span-2 text-right">Acciones</div>
                 </div>
@@ -351,7 +407,7 @@ export default function AdminProductsPage() {
                         idx % 2 === 0 ? "bg-white" : "bg-gray-50/60"
                       }`}
                     >
-                      <div className="col-span-3">
+                      <div className="col-span-2">
                         {isEditing ? (
                           <input
                             className="w-full border border-gray-300 rounded-lg px-2 py-1 text-gray-900"
@@ -381,6 +437,29 @@ export default function AdminProductsPage() {
 
                       <div className="col-span-2">
                         {isEditing ? (
+                          <select
+                            className="w-full border border-gray-300 rounded-lg px-2 py-1 text-gray-900"
+                            value={editForm.categoryId}
+                            onChange={(e) =>
+                              setEditForm((prev) => ({ ...prev, categoryId: e.target.value }))
+                            }
+                          >
+                            <option value ="">Seleccionar categoría </option>
+                            {categories.map((cat) => (
+                              <option key = {cat.id} value={cat.id}>
+                                {cat.name}
+                              </option>
+                            ))}
+                            </select>
+                        ) : (
+                          <span className="text-gray-900">
+                            {p.category?.name || "Sin categoría"}
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="col-span-2">
+                        {isEditing ? (
                           <input
                             className="w-full border border-gray-300 rounded-lg px-2 py-1 text-gray-900"
                             value={editForm.price}
@@ -395,7 +474,7 @@ export default function AdminProductsPage() {
                         )}
                       </div>
 
-                      <div className="col-span-2">
+                      <div className="col-span-1">
                         {isEditing ? (
                           <input
                             className="w-full border border-gray-300 rounded-lg px-2 py-1 text-gray-900"

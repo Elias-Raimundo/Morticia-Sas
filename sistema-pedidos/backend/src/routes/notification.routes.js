@@ -35,6 +35,36 @@ router.get(
   }
 );
 
+router.delete(
+  "/:id",
+  authMiddleware,
+  async (req, res) => {
+    const { id } = req.params;
+
+    try {
+      const notification = await prisma.notification.findUnique({
+        where: { id: Number(id) },
+      });
+
+      if (!notification) {
+        return res.status(404).json({ error: "Notificación no encontrada" });
+      }
+
+      if (notification.userId !== req.user.id) {
+        return res.status(403).json({ error: "No autorizado" });
+      }
+
+      await prisma.notification.delete({
+        where: { id: Number(id) },
+      });
+
+      res.json({ message: "Notificación eliminada" });
+    } catch (error) {
+      res.status(500).json({ error: "Error del servidor" });
+    }
+  }
+);
+
 // 🔔 Marcar notificación como leída
 router.patch(
   "/:id/read",
@@ -90,6 +120,25 @@ router.patch(
 
     } catch (error) {
       res.status(500).json({ error: "Error del servidor" });
+    }
+  }
+);
+
+router.get(
+  "/unread-count",
+  authMiddleware,
+  async(req, res) => {
+    try {
+      const count = await prisma.notification.count({
+        where: {
+          userId: req.user.id,
+          read: false,
+        },
+      });
+
+      res.json({ count });
+    } catch (error){
+      res.status(500).json({ erros: "Error del servidor" });
     }
   }
 );

@@ -10,6 +10,11 @@ type Product = {
   unit: string;
   price: number;
   stock: number;
+  categoryId?: number | null;
+  category?:  {
+    id: number;
+    name: string;
+  } | null;
 };
 
 type DraftItem = {
@@ -42,12 +47,30 @@ export default function CreateOrderForm({ onSent }: { onSent?: () => void }) {
 
   const [comments, setComments] = useState("");
   const [deliveryDate, setDeliveryDate] = useState<string>("");
+  const [categoryFilter, setCategoryFilter] = useState("");
 
   const filteredProducts = useMemo(() => {
     const s = q.trim().toLowerCase();
-    if (!s) return products;
-    return products.filter((p) => p.name.toLowerCase().includes(s));
-  }, [q, products]);
+    return products.filter((p)  => {
+      const matchesSearch = !s || p.name.toLowerCase().includes(s);
+      const matchesCategory = 
+        !categoryFilter || String(p.categoryId ?? "") === categoryFilter;
+      
+      return matchesSearch && matchesCategory;
+    });
+  }, [q, products, categoryFilter]);
+
+  const productsByCategory = useMemo(()   => {
+    return filteredProducts.reduce((acc, product) => {
+      const categoryName = product.category?.name || "Sin categoría";
+
+      if (!acc[categoryName]){
+        acc[categoryName] = [];
+      }
+      acc[categoryName].push(product);
+      return acc;
+    }, {} as Record<string, Product[]>);
+  }, [filteredProducts]);
 
   const load = async (showLoader = false) => {
     if (showLoader) setLoading(true);
@@ -196,8 +219,23 @@ export default function CreateOrderForm({ onSent }: { onSent?: () => void }) {
           <h3 className="font-semibold text-white text-lg">Artículos</h3>
           <p className="text-sm text-gray-300">Elegí los artículos a pedir</p>
         </div>
-
-        <div className="p-4">
+        <select
+          className="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-amber-300"
+          value={categoryFilter}
+          onChange={(e) => setCategoryFilter(e.target.value)}
+          disabled={busy}
+        >
+          <option value="">Todas las categorías</option>
+          {Object.entries(productsByCategory).map(([categoryName, items]) => {
+            const first = items[0];
+            return first?.categoryId ? (
+              <option key={categoryName} value={String(first.categoryId)}>
+                {categoryName}
+              </option>
+            ) : null;
+          })}
+        </select>
+        <div className="p-4 space-y-3">
           <input
             className="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-amber-300"
             placeholder="Buscar producto..."
@@ -206,47 +244,61 @@ export default function CreateOrderForm({ onSent }: { onSent?: () => void }) {
             disabled={busy}
           />
 
-          <div className="mt-4 max-h-[460px] overflow-auto rounded-xl border border-gray-200">
-            {filteredProducts.map((p) => (
-              <button
-                key={p.id}
-                type="button"
-                onClick={() => addProduct(p.id)}
-                disabled={busy || p.stock === 0}
-                className="w-full text-left px-4 py-3 border-b last:border-b-0 hover:bg-amber-50 transition disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <div className="flex items-start justify-between gap-4">
-                  <div className="flex flex-col">
-                    <span className="text-sm font-semibold text-gray-900">
-                      {p.name}
-                    </span>
-
-                    <span className="text-xs text-gray-500">
-                      Unidad: {p.unit}
-                    </span>
-
-                    <span
-                      className={`text-xs font-medium mt-1 ${
-                        p.stock > 5
-                          ? "text-green-600"
-                          : p.stock > 0
-                          ? "text-amber-600"
-                          : "text-red-600"
-                      }`}
-                    >
-                      Stock disponible: {p.stock}
-                    </span>
-                  </div>
-
-                  <span className="text-sm font-semibold text-gray-800 whitespace-nowrap">
-                    ${p.price.toLocaleString()}
-                  </span>
-                </div>
-              </button>
-            ))}
-
-            {filteredProducts.length === 0 && (
+          <div className="mt-4 max-h-[460px] overflow-auto rounded-xl border border-gray-200 bg-white">
+            {filteredProducts.length === 0 ? (
               <div className="p-4 text-sm text-gray-500">Sin resultados</div>
+            ) : (
+              <div className="p-3 space-y-4">
+                {Object.entries(productsByCategory).map(([categoryName, items]) => (
+                  <div key={categoryName}>
+                    <div className="mb-2 rounded-lg bg-amber-100 px-3 py-2">
+                      <span className="text-xs font-semibold uppercase tracking-wide text-amber-800">
+                        {categoryName}
+                      </span>
+                    </div>
+
+                    <div className="space-y-2">
+                      {items.map((p) => (
+                        <button
+                          key={p.id}
+                          type="button"
+                          onClick={() => addProduct(p.id)}
+                          disabled={busy || p.stock === 0}
+                          className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-left transition hover:bg-amber-50 disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          <div className="flex items-start justify-between gap-4">
+                            <div className="flex min-w-0 flex-col">
+                              <span className="truncate text-sm font-semibold text-gray-900">
+                                {p.name}
+                              </span>
+
+                              <span className="mt-1 text-xs text-gray-500">
+                                Unidad: {p.unit}
+                              </span>
+
+                              <span
+                                className={`mt-1 text-xs font-medium ${
+                                  p.stock > 5
+                                    ? "text-green-600"
+                                    : p.stock > 0
+                                    ? "text-amber-600"
+                                    : "text-red-600"
+                                }`}
+                              >
+                                Stock disponible: {p.stock}
+                              </span>
+                            </div>
+
+                            <span className="whitespace-nowrap text-sm font-semibold text-gray-800">
+                              ${p.price.toLocaleString()}
+                            </span>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
             )}
           </div>
         </div>
@@ -312,6 +364,7 @@ export default function CreateOrderForm({ onSent }: { onSent?: () => void }) {
 
                   <div className="col-span-2 flex justify-end">
                     <input
+                      key = {`${it.id}-${it.quantity}`}
                       type="number"
                       min={1}
                       className="w-20 rounded-lg border border-gray-300 px-2 py-1 text-right text-gray-900"

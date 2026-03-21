@@ -1,3 +1,6 @@
+if (process.env.NODE_ENV !== "production"){
+  process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
+}
 import dns from "node:dns"
 dns.setDefaultResultOrder("ipv4first");
 import "dotenv/config";
@@ -14,6 +17,7 @@ import rateLimit from "express-rate-limit";
 import productRoutes from "./routes/product.routes.js";
 import balanceRoutes from "./routes/balance.routes.js";
 import statsRoutes from "./routes/stats.routes.js";
+import categoryRoutes from "./routes/category.routes.js";
 
 const app = express();
 app.set("trust proxy", 1); 
@@ -54,6 +58,7 @@ app.use("/api/notifications", notificationRoutes);
 app.use("/api/products", productRoutes);
 app.use("/api/balance", balanceRoutes);
 app.use("/api/stats", statsRoutes);
+app.use("/api/categories", categoryRoutes);
 
 
 app.get("/api/user/me", authMiddleware, async (req, res) => {

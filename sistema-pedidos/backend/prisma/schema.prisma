@@ -34,6 +34,17 @@ model Product {
   createdAt DateTime    @default(now())
   stock     Int         @default(0)
   items     OrderItem[]
+  categoryId Int?
+  category  Category?   @relation(fields: [categoryId], references: [id])
+
+  @@index([categoryId])
+}
+
+model Category  {
+  id        Int         @id @default(autoincrement())
+  name      String      @unique
+  products  Product[]
+  createdAt DateTime    @default(now())
 }
 
 model Order {

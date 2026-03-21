@@ -4,17 +4,24 @@ import { AppError } from "../utils/AppError.js";
 export const listActiveProducts = async () => {
   return prisma.product.findMany({
     where: { active: true },
+    include: {
+      category: true,
+    },
     orderBy: { name: "asc" },
   });
 };
 
 export const listAllProductsAdmin = async () => {
   return prisma.product.findMany({
-    orderBy: { createdAt: "desc" },
+    include: {
+      category: true,
+    },
+    orderBy: { 
+      name: "asc" },
   });
 };
 
-export const createProduct = async ({ name, unit, price, stock }) => {
+export const createProduct = async ({ name, unit, price, stock, categoryId }) => {
   if (!name || !unit) throw new AppError("Datos inválidos", 400);
   if (price == null || Number(price) <= 0) throw new AppError("Precio inválido", 400);
   if (stock == null || Number(stock) < 0) throw new AppError("Stock inválido", 400);
@@ -25,6 +32,7 @@ export const createProduct = async ({ name, unit, price, stock }) => {
       unit: unit.trim(),
       price: Number(price),
       stock: Number(stock),
+      categoryId: categoryId ? Number(categoryId) : null,
       active: true,
     },
   });
@@ -52,8 +60,15 @@ export const updateProduct = async (id, data) => {
   }
   if (data.active != null) payload.active = Boolean(data.active);
 
+  if (data.categoryId !== undefined){
+    payload.categoryId = data.categoryId ? Number(data.categoryId) : null;
+  }
+
   return prisma.product.update({
     where: { id: productId },
     data: payload,
+    include: {
+      category: true,
+    }
   });
 };

@@ -16,8 +16,8 @@ export default function Sidebar() {
   const links = isAdmin
     ? [
         { href: "/dashboard", label: "Pedidos" },
-        { href: "/dashboard/admin", label: "Administración" },
         { href: "/dashboard/admin/products", label: "Productos" },
+        { href: "/dashboard/admin", label: "Administración" },
         { href: "/dashboard/admin/resumen", label: "Resumen" },
       ]
     : [
