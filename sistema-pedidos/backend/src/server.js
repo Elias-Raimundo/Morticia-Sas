@@ -50,6 +50,14 @@ app.get("/", (req, res) => {
   res.send("API funcionando 🚀");
 });
 
+app.get("/api/health", (req, res) => {
+  res.json({ 
+    status: "ok",
+    uptime: process.uptime(),
+    timestamp: new Date()
+  });
+});
+
 // ✅ UNA SOLA VEZ
 app.use("/api/auth", authLimiter, authRoutes);
 
