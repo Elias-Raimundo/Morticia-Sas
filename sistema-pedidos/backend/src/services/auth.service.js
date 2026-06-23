@@ -80,3 +80,33 @@ export const login = async (data) => {
 
   return { user, token };
 };
+
+export const resetPasswordSimple = async (data) => {
+  const email = String(data.email || "").trim();
+  const newPassword = String(data.newPassword || "").trim();
+
+  if (!email || !newPassword) {
+    throw new Error("Faltan email o nueva contraseña");
+  }
+
+  if (newPassword.length < 6) {
+    throw new Error("La nueva contraseña debe tener al menos 6 caracteres");
+  }
+  
+  const user = await prisma.user.findUnique({
+    where: { email },
+  });
+
+  if (!user) {
+    throw new Error("El email no está registrado");
+  }
+
+  const hashedPassword = await hashPassword(newPassword);
+
+  await prisma.user.update({
+    where: { id: user.id },
+    data: { password: hashedPassword },
+  });
+
+  return { message: "Contraseña actualizada correctamente" };
+};

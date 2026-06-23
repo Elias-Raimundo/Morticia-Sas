@@ -95,6 +95,14 @@ return (
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
               />
+              <p className="text-right text-sm">
+                <span
+                  className="cursor-pointer font-medium text-amber-600 hover:underline"
+                  onClick={() => router.push("/reset-password")}
+                >
+                  ¿Olvidaste tu contraseña?
+                </span>
+              </p>
             </div>
 
             {/* Botón */}
