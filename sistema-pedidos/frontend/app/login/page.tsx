@@ -98,7 +98,7 @@ return (
               <p className="text-right text-sm">
                 <span
                   className="cursor-pointer font-medium text-amber-600 hover:underline"
-                  onClick={() => router.push("/reset-password")}
+                  onClick={() => router.push("/forgot-password")}
                 >
                   ¿Olvidaste tu contraseña?
                 </span>
