@@ -70,7 +70,7 @@ export default function RegisterStep2Page() {
       const data = await res.json().catch(() => ({}));
 
       if (!res.ok) {
-        toast.error("No se pudo crear la cuenta ");
+        toast.error(data.error || "No se pudo crear la cuenta");
         return;
       }
 

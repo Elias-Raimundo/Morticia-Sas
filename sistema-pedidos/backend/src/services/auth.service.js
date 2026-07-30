@@ -55,30 +55,21 @@ export const register = async (data) => {
     },
   });
 
-  return user;
+  const { password: _, ...safeUser } = user;
+  return safeUser;
 };
 
 export const login = async (data) => {
-  const user = await prisma.user.findFirst({
-    where: { email: data.email },
-  });
+  const user = await prisma.user.findFirst({ where: { email: data.email } });
+  if (!user) throw new Error("Credenciales inválidas");
 
-  if (!user) {
-    throw new Error("Credenciales inválidas");
-  }
-
-  const validPassword = await comparePassword(
-    data.password,
-    user.password
-  );
-
-  if (!validPassword) {
-    throw new Error("Credenciales inválidas");
-  }
+  const validPassword = await comparePassword(data.password, user.password);
+  if (!validPassword) throw new Error("Credenciales inválidas");
 
   const token = generateToken(user);
+  const { password: _, ...safeUser } = user;
 
-  return { user, token };
+  return { user: safeUser, token };
 };
 
 export const resetPasswordSimple = async (data) => {

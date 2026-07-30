@@ -3,8 +3,7 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-
+  provider  = "postgresql"
 }
 
 model User {
@@ -56,6 +55,7 @@ model Order {
   comments     String?
   createdAt    DateTime    @default(now())
   updatedAt    DateTime    @updatedAt
+  confirmedAt  DateTime?
   user         User        @relation(fields: [userId], references: [id])
   items        OrderItem[]
 
@@ -104,7 +104,6 @@ enum Role {
 
 enum OrderStatus {
   draft
-  sent
   confirmed
   delivered
   cancelled

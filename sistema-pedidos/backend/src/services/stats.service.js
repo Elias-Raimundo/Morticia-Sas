@@ -1,4 +1,5 @@
 import prisma from "../prisma.js";
+import { AppError } from "../utils/AppError.js";
 
 export const getProductsStatsService = async ({ range, from, to }) => {
   const now = new Date();
@@ -20,6 +21,14 @@ export const getProductsStatsService = async ({ range, from, to }) => {
   if (from && to) {
     startDate = new Date(`${from}T00:00:00`);
     endDate = new Date(`${to}T23:59:59`);
+
+    if (Number.isNaN(startDate.getTime()) || Number.isNaN(endDate.getTime())) {
+      throw new AppError("Rango de fechas inválido", 400);
+    }
+  }
+
+  if (range && range !== "week" && range !== "month" && !(from && to)) {
+    throw new AppError("Parámetro range inválido", 400);
   }
 
   const orderWhere = {
@@ -27,36 +36,24 @@ export const getProductsStatsService = async ({ range, from, to }) => {
       in: ["confirmed", "delivered"],
     },
     ...(startDate && endDate && {
-      createdAt:{
+      confirmedAt: {
         gte: startDate,
-        lte:endDate,
+        lte: endDate,
       },
     }),
   };
 
-  const [items, orders] = await Promise.all([
-    prisma.orderItem.findMany({
-      where: {
-        order: orderWhere,
-      },
-      include: {
-        product: true,
-        order: true,
-      },
-    }),
-    prisma.order.findMany({
-      where: orderWhere,
-      select: {
-        id: true,
-        userId: true,
-        total: true,
-        createdAt: true,
-      },
-      orderBy: {
-        createdAt: "asc",
-      },
-    }),
-  ]);
+  const orders = await prisma.order.findMany({
+    where: orderWhere,
+    include: {
+      items: { include: { product: true } },
+    },
+    orderBy: {
+      confirmedAt: "asc",
+    },
+  });
+
+  const items = orders.flatMap((o) => o.items);
 
   const productsMap = new Map();
 
@@ -77,7 +74,9 @@ export const getProductsStatsService = async ({ range, from, to }) => {
   const salesByDayMap = new Map();
 
   for (const order of orders) {
-    const key = new Date(order.createdAt).toISOString().slice(0, 10);
+    // Fallback: órdenes viejas (previas a este cambio) no tienen confirmedAt
+    const referenceDate = order.confirmedAt ?? order.createdAt;
+    const key = new Date(referenceDate).toISOString().slice(0, 10);
 
     const current = salesByDayMap.get(key) || {
       date: key,

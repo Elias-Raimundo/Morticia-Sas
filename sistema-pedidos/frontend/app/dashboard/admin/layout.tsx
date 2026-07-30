@@ -9,18 +9,23 @@ interface Props {
 }
 
 export default function AdminLayout({ children }: Props) {
-  const { user } = useAuth();
+  const { user, loading } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
-    if (!user) return;
+    if (loading) return;
+
+    if (!user) {
+      router.push("/login");
+      return;
+    }
 
     if (user.role !== "admin") {
       router.push("/dashboard");
     }
-  }, [user, router]);
+  }, [user, loading, router]);
 
-  if (!user || user.role !== "admin") return null;
+  if (loading || !user || user.role !== "admin") return null;
 
-  return  <>{children}</>;
+  return <>{children}</>;
 }

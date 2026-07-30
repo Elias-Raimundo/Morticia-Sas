@@ -61,6 +61,9 @@ export default function ClientBalanceModal({
       const res = await apiFetch(`/api/balance/admin/${userId}`);
       const json = await res.json().catch(() => null);
       if (res.ok) setData(json);
+    } catch (error) {
+      console.error(error);
+      toast.error("Error de red al cargar el balance");
     } finally {
       setLoading(false);
     }
@@ -97,10 +100,7 @@ export default function ClientBalanceModal({
     try {
       const res = await apiFetch(`/api/balance/admin/${userId}/payment`, {
         method: "POST",
-        body: JSON.stringify({
-          amount: Number(amount),
-          description,
-        }),
+        body: JSON.stringify({ amount: Number(amount), description }),
       });
 
       const json = await res.json().catch(() => ({}));
@@ -114,6 +114,9 @@ export default function ClientBalanceModal({
       setDescription("");
       await load();
       onChanged?.();
+    } catch (error) {
+      console.error(error);
+      toast.error("Error de red al registrar el pago");
     } finally {
       setSaving(false);
     }
@@ -162,7 +165,7 @@ export default function ClientBalanceModal({
                 <div className="text-sm text-gray-600">Balance actual</div>
                 <div
                   className={`text-2xl font-bold ${
-                    data.balance > 0 ? "text-green-600" : "text-red-600"
+                    data.balance > 0 ? "text-red-600" : "text-green-600"
                   }`}
                 >
                   {formatMoney(data.balance)}
@@ -240,7 +243,7 @@ export default function ClientBalanceModal({
                           <span className="text-gray-500">Monto</span>
                           <span
                             className={`font-semibold ${
-                              m.amount >= 0 ? "text-green-600" : "text-red-600"
+                              m.amount >= 0 ? "text-red-600" : "text-green-600"
                             }`}
                           >
                             {m.amount >= 0 ? "+" : "-"}
@@ -293,7 +296,7 @@ export default function ClientBalanceModal({
 
                           <div
                             className={`col-span-3 text-right font-semibold ${
-                              m.amount >= 0 ? "text-green-600" : "text-red-600"
+                              m.amount >= 0 ? "text-red-600" : "text-green-600"
                             }`}
                           >
                             {m.amount >= 0 ? "+" : "-"}

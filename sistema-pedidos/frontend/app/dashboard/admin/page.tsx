@@ -23,6 +23,9 @@ export default function AdminPage() {
       const res = await apiFetch("/api/balance/admin/clients");
       const data = await res.json().catch(() => []);
       setItems(Array.isArray(data) ? data : []);
+    } catch (error) {
+      console.error(error);
+      setItems([]);
     } finally {
       setLoading(false);
     }
@@ -71,13 +74,13 @@ export default function AdminPage() {
 
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-gray-500">Balance</span>
-                    <span
-                      className={`font-semibold ${
-                        item.balance > 0 ? "text-green-600" : "text-red-600"
-                      }`}
-                    >
-                      {formatMoney(item.balance)}
-                    </span>
+                      <span
+                        className={`font-semibold ${
+                          item.balance > 0 ? "text-red-600" : "text-green-600"
+                        }`}
+                      >
+                        {formatMoney(item.balance)}
+                      </span>
                   </div>
 
                   <div className="flex justify-end">

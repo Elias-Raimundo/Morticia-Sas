@@ -1,7 +1,8 @@
 import PDFDocument from "pdfkit";
 import fs from "fs";
 import path from "path";
-
+import { fileURLToPath } from "url";
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 export function buildOrderPdf(order) {
   return new Promise((resolve, reject) => {
@@ -18,7 +19,7 @@ export function buildOrderPdf(order) {
       const pageHeight = doc.page.height;
       const contentWidth = pageWidth - doc.page.margins.left - doc.page.margins.right;
 
-      const logoPath = path.join(process.cwd(), "src/assets/logo2sin.png");
+      const logoPath = path.join(__dirname, "src/assets/logo2sin.png");
 
       const orderId = order?.id ?? "—";
       const user = order?.user ?? {};
@@ -187,7 +188,10 @@ export function buildOrderPdf(order) {
       }
 
       // ===== TOTAL =====
-
+      if (y + 60 > pageHeight - margin) {
+        doc.addPage();
+        y = margin;
+      }
       const totalBoxWidth = 200;
       const totalBoxX = margin + contentWidth - totalBoxWidth;
 

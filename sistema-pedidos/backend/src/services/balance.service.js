@@ -1,14 +1,28 @@
 import prisma from "../prisma.js";
 import { AppError } from "../utils/AppError.js";
 
-export const getMyBalance = async (userId, dateFrom, dateTo) => {
-  const where = { userId };
+const buildDateWhere = (dateFrom, dateTo) => {
+  if (!dateFrom && !dateTo) return {};
 
-  if (dateFrom || dateTo) {
-    where.createdAt = {};
-    if (dateFrom) where.createdAt.gte = new Date(`${dateFrom}T00:00:00`);
-    if (dateTo) where.createdAt.lte = new Date(`${dateTo}T23:59:59`);
+  const createdAt = {};
+
+  if (dateFrom) {
+    const from = new Date(`${dateFrom}T00:00:00`);
+    if (Number.isNaN(from.getTime())) throw new AppError("dateFrom inválido", 400);
+    createdAt.gte = from;
   }
+
+  if (dateTo) {
+    const to = new Date(`${dateTo}T23:59:59`);
+    if (Number.isNaN(to.getTime())) throw new AppError("dateTo inválido", 400);
+    createdAt.lte = to;
+  }
+
+  return { createdAt };
+};
+
+export const getMyBalance = async (userId, dateFrom, dateTo) => {
+  const where = { userId, ...buildDateWhere(dateFrom, dateTo) };
 
   const movements = await prisma.balanceMovement.findMany({
     where,
@@ -34,13 +48,7 @@ export const getUserBalanceAdmin = async (userId, dateFrom, dateTo) => {
 
   if (!user) throw new AppError("Usuario no encontrado", 404);
 
-  const where = { userId: uid };
-
-  if (dateFrom || dateTo) {
-    where.createdAt = {};
-    if (dateFrom) where.createdAt.gte = new Date(`${dateFrom}T00:00:00`);
-    if (dateTo) where.createdAt.lte = new Date(`${dateTo}T23:59:59`);
-  }
+  const where = { userId: uid, ...buildDateWhere(dateFrom, dateTo) };
 
   const movements = await prisma.balanceMovement.findMany({
     where,
@@ -101,10 +109,8 @@ export const registerPayment = async (userId, amount, description) => {
 
     const user = await prisma.user.findUnique({
         where: { id: uid },
+        select: { id: true, role: true },
     });
-
-    console.log ("USER EN PAYMENT", user);
-    console.log ("Role", user?.role);
     
     if (!user) throw new AppError("Usuario no encontrado", 404);    
     if (user.role !== "client") throw new AppError("Solo se pueden registrar pagos para clientes", 400);
@@ -118,36 +124,3 @@ export const registerPayment = async (userId, amount, description) => {
         },
     });
 };
-
-export const getUsertBalanceAdmin = async (userId, dateFrom, dateTo) => {
-  const uid = Number(userId);
-  if (Number.isNaN(uid)) throw new AppError("ID inválido", 400);
-
-  const user = await prisma.user.findUnique({
-    where: { id: uid },
-    select: { id: true, name: true, email: true },
-  });
-
-  if (!user) throw new AppError("Usuario no encontrado", 404);
-
-  const where = { userId: uid };
-
-  if (dateFrom || dateTo) {
-    where.createdAt = {};
-    if (dateFrom) where.createdAt.gte = new Date(`${dateFrom}T00:00:00`);
-    if (dateTo) where.createdAt.lte = new Date(`${dateTo}T23:59:59`);
-  }
-
-  const movements = await prisma.balanceMovement.findMany({
-    where,
-    orderBy: { createdAt: "desc" },
-  });
-
-  const balance = movements.reduce((acc, m) => acc + Number(m.amount), 0);
-
-  return {
-    user,
-    balance,
-    movements,
-  };
-}

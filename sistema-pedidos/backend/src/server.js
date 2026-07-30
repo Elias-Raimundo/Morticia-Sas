@@ -32,13 +32,17 @@ app.use(helmet());
 // ✅ SIEMPRE ANTES DE RUTAS
 app.use(express.json({ limit: "1mb" }));
 
-
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 100,
+  max: 300, // 🔼 subido de 100 a 300, como colchón para varios usuarios/pestañas en la misma IP
   message: { error: "Demasiadas solicitudes, intentá más tarde." },
 });
-app.use(limiter);
+
+const notificationsLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 1000, // el polling automático (5s admin / 30s cliente) puede generar bastantes requests legítimos
+  message: { error: "Demasiadas solicitudes, intentá más tarde." },
+});
 
 const authLimiter = rateLimit({
   windowMs: 10 * 60 * 1000,
@@ -61,8 +65,11 @@ app.get("/api/health", (req, res) => {
 // ✅ UNA SOLA VEZ
 app.use("/api/auth", authLimiter, authRoutes);
 
+app.use("/api/notifications", notificationsLimiter, notificationRoutes); // su propio límite, va primero
+
+app.use(limiter); // 👈 a partir de acá, todo lo de abajo queda protegido por el límite general
+
 app.use("/api/orders", orderRoutes);
-app.use("/api/notifications", notificationRoutes);
 app.use("/api/products", productRoutes);
 app.use("/api/balance", balanceRoutes);
 app.use("/api/stats", statsRoutes);

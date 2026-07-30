@@ -156,9 +156,9 @@ export default function CreateOrderForm({ onSent }: { onSent?: () => void }) {
     }
   };
 
-  const saveDraftMeta = async () => {
-    if (!draft) return;
-    setBusy(true);
+  const saveDraftMeta = async (options?: { silent?: boolean }) => {
+    if (!draft) return false;
+    if (!options?.silent) setBusy(true);
     try {
       const res = await apiFetch(`/api/orders/${draft.id}`, {
         method: "PATCH",
@@ -169,11 +169,15 @@ export default function CreateOrderForm({ onSent }: { onSent?: () => void }) {
       });
 
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) return toast.error(data?.error || "Error guardando datos del pedido");
+      if (!res.ok) {
+        toast.error(data?.error || "Error guardando datos del pedido");
+        return false;
+      }
 
       setDraft(data);
+      return true;
     } finally {
-      setBusy(false);
+      if (!options?.silent) setBusy(false);
     }
   };
 
@@ -183,7 +187,8 @@ export default function CreateOrderForm({ onSent }: { onSent?: () => void }) {
 
     setBusy(true);
     try {
-      await saveDraftMeta();
+      const savedOk = await saveDraftMeta({ silent: true });
+      if (!savedOk) return; // 👈 no sigas si falló el guardado de fecha/comentarios
 
       const res = await apiFetch(`/api/orders/${draft.id}/send`, {
         method: "PATCH",
@@ -199,8 +204,7 @@ export default function CreateOrderForm({ onSent }: { onSent?: () => void }) {
       setComments("");
       setDeliveryDate("");
       await load();
-
-    }catch(error){
+    } catch (error) {
       console.error(error);
       toast.error("Error enviando pedido");
     } finally {

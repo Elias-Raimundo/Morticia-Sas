@@ -16,4 +16,7 @@ router.post("/admin", authMiddleware, requireRole("admin"), productController.cr
 // ADMIN: editar (name/unit/price/active)
 router.patch("/admin/:id", authMiddleware, requireRole("admin"), productController.updateProduct);
 
+// ADMIN: eliminar (solo si no tiene pedidos asociados)
+router.delete("/admin/:id", authMiddleware, requireRole("admin"), productController.deleteProduct);
+
 export default router;

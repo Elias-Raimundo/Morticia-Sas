@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useRef } from "react";
 import { apiFetch } from "@/lib/api";
 import { toast } from "sonner";
 
@@ -45,6 +45,8 @@ export default function OrderDetailsModal({
   const [order, setOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(false);
   const [downloading, setDownloading]=useState(false);
+
+  const inputRefs = useRef<Record<number, HTMLInputElement | null>>({});
 
   // acciones por item
   const [savingItemId, setSavingItemId] = useState<number | null>(null);
@@ -94,7 +96,6 @@ export default function OrderDetailsModal({
 
   const statusLabel: Record<string, string> = {
     draft: "Borrador",
-    sent: "Enviado",
     confirmed: "Confirmado",
     delivered: "Entregado",
     cancelled: "Cancelado",
@@ -212,9 +213,9 @@ export default function OrderDetailsModal({
   if(!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 ">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/40 backdrop-blur-[1px]" onClick={onClose} />
-      <div className="relative w-full max-w-2xl mx-h-[90vh] rounden-2xl bg-white shadow-2xl overflow-hidden border border-gray-200 flex flex-col animate-modalIn_.18s_ease-out]">
+      <div className="relative w-full max-w-2xl max-h-[90vh] rounded-2xl bg-white shadow-2xl overflow-hidden border border-gray-200 flex flex-col">
         <div className="p-5 border-b flex items-center justify-between shrink-0 bg-white">
           <div>
             <h3 className="text-lg font-semibold text-gray-900">Detalle del pedido</h3>
@@ -227,17 +228,17 @@ export default function OrderDetailsModal({
               onClick={viewPdf}
               disabled={!orderId}
               className="rounded-lg border border-amber-300 text-amber-700 px-3 py-1 text-sm hover:bg-amber-50 disabled:opacity-60"
-              >
-                Ver PDF
-              </button>
-          <button
-            onClick={onClose}
-            className="rounded-lg border px-3 py-1 text-sm text-gray-700 hover:bg-gray-50"
-          >
-            Cerrar
-          </button>
+            >
+              Ver PDF
+            </button>
+            <button
+              onClick={onClose}
+              className="rounded-lg border px-3 py-1 text-sm text-gray-700 hover:bg-gray-50"
+            >
+              Cerrar
+            </button>
+          </div>
         </div>
-      </div>
 
         <div className="p-5 text-gray-900 overflow-y-auto">
           {loading ? (
@@ -258,7 +259,7 @@ export default function OrderDetailsModal({
               )}
 
               <div className="mb-4 flex items-center justify-between">
-                <span className="inline-block text-xs bg-gray-100  text-gray-700 border border-gray-300 px-2 py-1 rounded-full">
+                <span className="inline-block text-xs bg-gray-100 text-gray-700 border border-gray-300 px-2 py-1 rounded-full">
                   {statusLabel[order.status]}
                 </span>
 
@@ -290,6 +291,7 @@ export default function OrderDetailsModal({
                       {canEditDraft ? (
                         <>
                           <input
+                            ref={(el) => { inputRefs.current[it.id] = el; }}
                             className="w-20 rounded-md border border-gray-300 bg-white px-2 py-1 text-right text-gray-900"
                             type="number"
                             min={1}
@@ -305,12 +307,11 @@ export default function OrderDetailsModal({
                           />
 
                           <button
-                            className="text-xs border border-gray-300 rounded-md px-2 py-1  text-gray-800 hover:bg-gray-50 disabled:opacity-60"
+                            className="text-xs border border-gray-300 rounded-md px-2 py-1 text-gray-800 hover:bg-gray-50 disabled:opacity-60"
                             disabled={savingItemId === it.id}
                             onClick={() => {
-                              const el = document.activeElement as HTMLInputElement | null;
-                              // si no está enfocado el input, igual tomamos el qty actual del item
-                              const v = el?.type === "number" ? Number(el.value) : it.quantity;
+                              const el = inputRefs.current[it.id];
+                              const v = el ? Number(el.value) : it.quantity;
                               updateQty(it.id, v);
                             }}
                           >

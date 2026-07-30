@@ -81,44 +81,56 @@ export default function AdminProductsPage() {
   }, []);
 
   const create = async () => {
-    const res = await apiFetch("/api/products/admin", {
-      method: "POST",
-      body: JSON.stringify({
-        name,
-        unit,
-        price: Number(price),
-        stock: Number(stock),
-        categoryId: categoryId ? Number(categoryId) : null,
-      }),
-    });
+    try {
+      const res = await apiFetch("/api/products/admin", {
+        method: "POST",
+        body: JSON.stringify({
+          name,
+          unit,
+          price: Number(price),
+          stock: Number(stock),
+          categoryId: categoryId ? Number(categoryId) : null,
+        }),
+      });
 
-    if (!res.ok) {
-      const err = await res.json();
-      toast.error(err.error || "Error creando producto");
-      return;
+      const data = await res.json().catch(() => ({}));
+
+      if (!res.ok) {
+        toast.error(data?.error || "Error creando producto");
+        return;
+      }
+
+      setName("");
+      setUnit("");
+      setPrice("");
+      setStock("");
+      setCategoryId("");
+      await load();
+    } catch (error) {
+      console.error(error);
+      toast.error("Error de red al crear producto");
     }
-
-    setName("");
-    setUnit("");
-    setPrice("");
-    setStock("");
-    setCategoryId("");
-    await load();
   };
 
   const toggleActive = async (p: Product) => {
-    const res = await apiFetch(`/api/products/admin/${p.id}`, {
-      method: "PATCH",
-      body: JSON.stringify({ active: !p.active }),
-    });
+    try {
+      const res = await apiFetch(`/api/products/admin/${p.id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ active: !p.active }),
+      });
 
-    if (!res.ok) {
-      const err = await res.json();
-      toast.error(err.error || "Error actualizando producto");
-      return;
+      const data = await res.json().catch(() => ({}));
+
+      if (!res.ok) {
+        toast.error(data?.error || "Error actualizando producto");
+        return;
+      }
+
+      await load();
+    } catch (error) {
+      console.error(error);
+      toast.error("Error de red al actualizar producto");
     }
-
-    await load();
   };
 
   const startEdit = (p: Product) => {
@@ -144,25 +156,54 @@ export default function AdminProductsPage() {
   };
 
   const saveEdit = async (id: number) => {
-    const res = await apiFetch(`/api/products/admin/${id}`, {
-      method: "PATCH",
-      body: JSON.stringify({
-        name: editForm.name,
-        unit: editForm.unit,
-        price: Number(editForm.price),
-        stock: Number(editForm.stock),
-        categoryId: editForm.categoryId ? Number(editForm.categoryId) : null,
-      }),
-    });
+    try {
+      const res = await apiFetch(`/api/products/admin/${id}`, {
+        method: "PATCH",
+        body: JSON.stringify({
+          name: editForm.name,
+          unit: editForm.unit,
+          price: Number(editForm.price),
+          stock: Number(editForm.stock),
+          categoryId: editForm.categoryId ? Number(editForm.categoryId) : null,
+        }),
+      });
 
-    if (!res.ok) {
-      const err = await res.json();
-      toast.error(err.error || "Error guardando cambios");
-      return;
+      const data = await res.json().catch(() => ({}));
+
+      if (!res.ok) {
+        toast.error(data?.error || "Error guardando cambios");
+        return;
+      }
+
+      cancelEdit();
+      await load();
+    } catch (error) {
+      console.error(error);
+      toast.error("Error de red al guardar cambios");
     }
+  };
 
-    cancelEdit();
-    await load();
+  const removeProduct = async (id: number) => {
+    if (!confirm("¿Eliminar este producto? Esta acción no se puede deshacer.")) return;
+
+    try {
+      const res = await apiFetch(`/api/products/admin/${id}`, {
+        method: "DELETE",
+      });
+
+      const data = await res.json().catch(() => ({}));
+
+      if (!res.ok) {
+        toast.error(data?.error || "Error eliminando producto");
+        return;
+      }
+
+      setItems((prev) => prev.filter((item) => item.id !== id));
+      toast.success("Producto eliminado");
+    } catch (error) {
+      console.error(error);
+      toast.error("Error eliminando producto");
+    }
   };
 
   const createCategory = async () => {
@@ -666,26 +707,22 @@ return (
                   <div className="flex flex-wrap justify-end gap-2 pt-2">
                     {isEditing ? (
                       <>
-                        <button
-                          className="px-3 py-2 rounded-lg bg-black text-white text-xs"
-                          onClick={() => saveEdit(p.id)}
-                        >
+                        <button className="px-3 py-2 rounded-lg bg-black text-white text-xs" onClick={() => saveEdit(p.id)}>
                           Guardar
                         </button>
-                        <button
-                          className="px-3 py-2 rounded-lg border text-xs text-gray-700"
-                          onClick={cancelEdit}
-                        >
+                        <button className="px-3 py-2 rounded-lg border text-xs text-gray-700" onClick={cancelEdit}>
                           Cancelar
                         </button>
                       </>
                     ) : (
-                      <button
-                        className="px-3 py-2 rounded-lg border border-amber-300 text-amber-700 text-xs hover:bg-amber-50"
-                        onClick={() => startEdit(p)}
-                      >
-                        Editar
-                      </button>
+                      <>
+                        <button className="px-3 py-2 rounded-lg border border-amber-300 text-amber-700 text-xs hover:bg-amber-50" onClick={() => startEdit(p)}>
+                          Editar
+                        </button>
+                        <button className="px-3 py-2 rounded-lg border border-red-200 text-red-600 text-xs hover:bg-red-50" onClick={() => removeProduct(p.id)}>
+                          Eliminar
+                        </button>
+                      </>
                     )}
                   </div>
                 </div>
@@ -824,26 +861,22 @@ return (
                     <div className="col-span-2 flex justify-end gap-2">
                       {isEditing ? (
                         <>
-                          <button
-                            className="px-3 py-1 rounded-lg bg-black text-white text-xs"
-                            onClick={() => saveEdit(p.id)}
-                          >
+                          <button className="px-3 py-1 rounded-lg bg-black text-white text-xs" onClick={() => saveEdit(p.id)}>
                             Guardar
                           </button>
-                          <button
-                            className="px-3 py-1 rounded-lg border text-xs text-gray-700"
-                            onClick={cancelEdit}
-                          >
+                          <button className="px-3 py-1 rounded-lg border text-xs text-gray-700" onClick={cancelEdit}>
                             Cancelar
                           </button>
                         </>
                       ) : (
-                        <button
-                          className="px-3 py-1 rounded-lg border border-amber-300 text-amber-700 text-xs hover:bg-amber-50"
-                          onClick={() => startEdit(p)}
-                        >
-                          Editar
-                        </button>
+                        <>
+                          <button className="px-3 py-1 rounded-lg border border-amber-300 text-amber-700 text-xs hover:bg-amber-50" onClick={() => startEdit(p)}>
+                            Editar
+                          </button>
+                          <button className="px-3 py-1 rounded-lg border border-red-200 text-red-600 text-xs hover:bg-red-50" onClick={() => removeProduct(p.id)}>
+                            Eliminar
+                          </button>
+                        </>
                       )}
                     </div>
                   </div>

@@ -74,6 +74,9 @@ export const updateDraftOrder = async (orderId, userId, body) => {
 
 
 export const addItemToOrder = async (orderId, userId, productId, quantity) => {
+  const qty = Number(quantity);
+  if (!qty || qty <= 0) throw new AppError("Cantidad inválida", 400);
+
   return await prisma.$transaction(async (tx) => {
 
     const order = await tx.order.findUnique({
@@ -98,9 +101,14 @@ export const addItemToOrder = async (orderId, userId, productId, quantity) => {
       },
     });
 
-    const requestedQuantity = existingItem ? existingItem.quantity + quantity : quantity;
+    const requestedQuantity = existingItem ? existingItem.quantity + qty : qty;
 
-    if (requestedQuantity > product.stock) {
+    // 🔑 Chequeo atómico de stock
+    const stockCheck = await tx.product.findUnique({
+      where: { id: productId, stock: { gte: requestedQuantity } },
+    });
+
+    if (!stockCheck) {
       throw new AppError(`Stock insuficiente. Disponible: ${product.stock}`, 400);
     }
 
@@ -120,9 +128,9 @@ export const addItemToOrder = async (orderId, userId, productId, quantity) => {
         data: {
           orderId: Number(orderId),
           productId,
-          quantity,
+          quantity: qty,
           unitPrice: product.price,
-          subtotal: product.price * quantity,
+          subtotal: product.price * qty,
         },
       });
     }
@@ -222,9 +230,6 @@ export const getOrCreateMyDraft = async (userId) => {
   });
 };
 
-
-
-
 export const sendOrder = async (orderId, userId) => {
   // 1) Transacción: cambiar estado + notificaciones
   const result = await prisma.$transaction(async (tx) => {
@@ -265,15 +270,15 @@ export const sendOrder = async (orderId, userId) => {
       }
     }
     
-    for(const item of order.items){
-      await tx.product.update({
-        where: { id: item.productId },
-        data: {
-          stock: {
-            decrement: item.quantity,
-          },
-        },
+    for (const item of order.items) {
+      const stockUpdate = await tx.product.updateMany({
+        where: { id: item.productId, stock: { gte: item.quantity } }, // 🔑 condición atómica
+        data: { stock: { decrement: item.quantity } },
       });
+
+      if (stockUpdate.count === 0) {
+        throw new AppError(`Stock insuficiente para ${item.product.name}`, 400);
+      }
     }
 
 
@@ -281,8 +286,8 @@ export const sendOrder = async (orderId, userId) => {
     const updated = await tx.order.update({
       where: { id },
       data: { status: "confirmed",
-              createdAt: new Date(),
-       },
+              confirmedAt: new Date(),
+      },
       include: {
         user: { select: { id: true, name: true, email: true , phone: true, dniCuil: true, address: true} },
         items: { include: { product: true } },

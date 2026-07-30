@@ -27,7 +27,7 @@ export default function BalancePage() {
       if (dateTo) params.set("dateTo", dateTo);
 
       const res = await apiFetch(`/api/balance/my?${params.toString()}`);
-      const data = await res.json();
+      const data = await res.json().catch(() => ({}));
 
       if (!res.ok) {
         toast.error(data?.error || "Error cargando saldo");
@@ -36,6 +36,9 @@ export default function BalancePage() {
 
       setBalance(Number(data.balance ?? 0));
       setMovements(Array.isArray(data.movements) ? data.movements : []);
+    } catch (error) {
+      console.error(error);
+      toast.error("Error de red al cargar saldo");
     } finally {
       setLoading(false);
     }
