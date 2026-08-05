@@ -293,7 +293,7 @@ export default function CreateOrderForm({ onSent }: { onSent?: () => void }) {
                         >
                           <div className="flex items-start justify-between gap-4">
                             <div className="flex min-w-0 items-center gap-3">
-                              <ProductThumbnail imageUrl={p.imageUrl} size="h-12 w-12" />
+                              <ProductThumbnail imageUrl={p.imageUrl} size="h-20 w-20" />
 
                               <div className="flex min-w-0 flex-col">
                                 <span className="truncate text-sm font-semibold text-gray-900">
