@@ -65,6 +65,7 @@ export default function AdminProductsPage() {
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [listCategoryFilter, setListCategoryFilter] = useState("");
+  const [listSearchQuery, setListSearchQuery] = useState("");
 
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editForm, setEditForm] = useState<EditForm>({
@@ -408,9 +409,11 @@ const removeCategory = async (id: number) => {
   }
 };
 
-const filteredItems = listCategoryFilter
-  ? items.filter((p) => String(p.categoryId ?? "") === listCategoryFilter)
-  : items;
+const filteredItems = items.filter((p) => {
+  const matchesCategory = !listCategoryFilter || String(p.categoryId ?? "") === listCategoryFilter;
+  const matchesSearch = !listSearchQuery.trim() || p.name.toLowerCase().includes(listSearchQuery.trim().toLowerCase());
+  return matchesCategory && matchesSearch;
+});
 
 
   if (loading) return <div className="p-6 text-gray-700">Cargando...</div>;
@@ -693,8 +696,16 @@ return (
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
-          <label className="text-sm font-medium text-gray-700">Filtrar por categoría:</label>
+        <div className="flex flex-wrap items-center gap-2">
+          <input
+            type="text"
+            placeholder="Buscar por nombre..."
+            value={listSearchQuery}
+            onChange={(e) => setListSearchQuery(e.target.value)}
+            className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400"
+          />
+
+          <label className="text-sm font-medium text-gray-700">Categoría:</label>
           <select
             className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900"
             value={listCategoryFilter}
@@ -708,7 +719,7 @@ return (
             ))}
           </select>
 
-          {listCategoryFilter && (
+          {(listCategoryFilter || listSearchQuery) && (
             <span className="text-xs text-gray-500">
               {filteredItems.length} {filteredItems.length === 1 ? "producto" : "productos"}
             </span>
@@ -718,7 +729,9 @@ return (
 
       {filteredItems.length === 0 ? (
         <div className="p-6 text-center text-gray-600">
-          {listCategoryFilter ? "No hay productos en esta categoría." : "No hay productos todavía."}
+          {listCategoryFilter || listSearchQuery
+            ? "No hay productos que coincidan con la búsqueda."
+            : "No hay productos todavía."}
         </div>
       ) : (
         <>
