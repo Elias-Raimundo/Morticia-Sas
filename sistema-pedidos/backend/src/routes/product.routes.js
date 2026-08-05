@@ -1,6 +1,7 @@
 import express from "express";
 import * as productController from "../controllers/product.controller.js";
 import { authMiddleware, requireRole } from "../middleware/auth.middleware.js";
+import { uploadImage } from "../middleware/upload.middleware.js";
 
 const router = express.Router();
 
@@ -18,5 +19,14 @@ router.patch("/admin/:id", authMiddleware, requireRole("admin"), productControll
 
 // ADMIN: eliminar (solo si no tiene pedidos asociados)
 router.delete("/admin/:id", authMiddleware, requireRole("admin"), productController.deleteProduct);
+
+// ADMIN: subir/reemplazar foto del producto
+router.post(
+  "/admin/:id/image",
+  authMiddleware,
+  requireRole("admin"),
+  uploadImage,
+  productController.uploadProductImage
+);
 
 export default router;

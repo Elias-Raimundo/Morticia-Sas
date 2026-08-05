@@ -1,5 +1,6 @@
 import prisma from "../prisma.js";
 import { AppError } from "../utils/AppError.js";
+import { supabase } from "../utils/supabaseClient.js";
 
 export const listActiveProducts = async () => {
   return prisma.product.findMany({
@@ -114,4 +115,42 @@ export const deleteProduct = async (id) => {
 
   await prisma.product.delete({ where: { id: productId } });
   return { message: "Producto eliminado correctamente" };
+};
+
+export const uploadProductImage = async (id, file) => {
+  const productId = Number(id);
+  if (Number.isNaN(productId)) throw new AppError("ID inválido", 400);
+
+  const product = await prisma.product.findUnique({ where: { id: productId } });
+  if (!product) throw new AppError("Producto no encontrado", 404);
+
+  const ext = file.originalname.split(".").pop();
+  const fileName = `product-${productId}-${Date.now()}.${ext}`;
+
+  const { error: uploadError } = await supabase.storage
+    .from("product-images")
+    .upload(fileName, file.buffer, {
+      contentType: file.mimetype,
+      upsert: false,
+    });
+
+  if (uploadError) {
+    throw new AppError("Error subiendo la imagen", 500);
+  }
+
+  const { data: publicUrlData } = supabase.storage
+    .from("product-images")
+    .getPublicUrl(fileName);
+
+  // Si el producto ya tenía una foto anterior, la borramos para no acumular basura en el storage
+  if (product.imageUrl) {
+    const oldFileName = product.imageUrl.split("/").pop();
+    await supabase.storage.from("product-images").remove([oldFileName]).catch(() => {});
+  }
+
+  return prisma.product.update({
+    where: { id: productId },
+    data: { imageUrl: publicUrlData.publicUrl },
+    include: { category: true },
+  });
 };

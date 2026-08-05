@@ -35,6 +35,7 @@ model Product {
   items     OrderItem[]
   categoryId Int?
   category  Category?   @relation(fields: [categoryId], references: [id])
+  imageUrl  String?
 
   @@index([categoryId])
 }

@@ -12,6 +12,7 @@ type Product = {
   stock: number;
   active: boolean;
   categoryId?: number | null;
+  imageUrl?: string | null;
   category?: {
     id: number;
     name: string;
@@ -31,6 +32,26 @@ type Category = {
   name: string;
 };
 
+function ProductThumbnail({ imageUrl, size = "h-14 w-14" }: { imageUrl?: string | null; size?: string }) {
+  if (imageUrl) {
+    return (
+      <img
+        src={imageUrl}
+        alt=""
+        className={`${size} rounded-lg object-cover border border-gray-200 bg-gray-50 shrink-0`}
+      />
+    );
+  }
+
+  return (
+    <div className={`${size} rounded-lg border border-gray-200 bg-gray-50 shrink-0 flex items-center justify-center text-gray-300`}>
+      <svg xmlns="http://www.w3.org/2000/svg" className="h-1/2 w-1/2" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909M3 4.5h18M3.75 21h16.5a1.5 1.5 0 001.5-1.5V4.5a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 4.5v15a1.5 1.5 0 001.5 1.5z" />
+      </svg>
+    </div>
+  );
+}
+
 export default function AdminProductsPage() {
   const [items, setItems] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
@@ -41,6 +62,9 @@ export default function AdminProductsPage() {
   const [stock, setStock] = useState("");
   const [categories, setCategories] = useState<Category[]>([]);
   const [categoryId, setCategoryId] = useState("");
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [listCategoryFilter, setListCategoryFilter] = useState("");
 
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editForm, setEditForm] = useState<EditForm>({
@@ -100,11 +124,31 @@ export default function AdminProductsPage() {
         return;
       }
 
+      if (imageFile) {
+        const formData = new FormData();
+        formData.append("image", imageFile);
+
+        const imgRes = await apiFetch(`/api/products/admin/${data.id}/image`, {
+          method: "POST",
+          headers: {}, // 👈 importante: sacamos el Content-Type para que el navegador ponga el boundary correcto de multipart
+          body: formData,
+        });
+
+        const imgData = await imgRes.json().catch(() => ({}));
+
+        if (!imgRes.ok) {
+          toast.error(imgData?.error || "Producto creado, pero falló la subida de la foto");
+        }
+      }
+
       setName("");
       setUnit("");
       setPrice("");
       setStock("");
       setCategoryId("");
+      setImageFile(null);
+      setImagePreview(null);
+      toast.success("Producto creado");
       await load();
     } catch (error) {
       console.error(error);
@@ -206,6 +250,31 @@ export default function AdminProductsPage() {
     }
   };
 
+  const uploadImageForProduct = async (productId: number, file: File) => {
+    try {
+      const formData = new FormData();
+      formData.append("image", file);
+
+      const res = await apiFetch(`/api/products/admin/${productId}/image`, {
+        method: "POST",
+        body: formData,
+      });
+
+      const data = await res.json().catch(() => ({}));
+
+      if (!res.ok) {
+        toast.error(data?.error || "Error subiendo la foto");
+        return;
+      }
+
+      setItems((prev) => prev.map((item) => (item.id === productId ? data : item)));
+      toast.success("Foto actualizada");
+    } catch (error) {
+      console.error(error);
+      toast.error("Error de red al subir la foto");
+    }
+  };
+
   const createCategory = async () => {
     const cleanName = newCategoryName.trim();
     if (!cleanName) {
@@ -295,6 +364,18 @@ export default function AdminProductsPage() {
     }
   };
 
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const file = e.target.files?.[0];
+  if (!file) {
+    setImageFile(null);
+    setImagePreview(null);
+    return;
+  }
+
+  setImageFile(file);
+  setImagePreview(URL.createObjectURL(file));
+};
+
 const removeCategory = async (id: number) => {
   if (!confirm("¿Eliminar esta categoría?")) return;
 
@@ -326,6 +407,10 @@ const removeCategory = async (id: number) => {
     toast.error("Error eliminando categoría");
   }
 };
+
+const filteredItems = listCategoryFilter
+  ? items.filter((p) => String(p.categoryId ?? "") === listCategoryFilter)
+  : items;
 
 
   if (loading) return <div className="p-6 text-gray-700">Cargando...</div>;
@@ -390,6 +475,22 @@ return (
             value={stock}
             onChange={(e) => setStock(e.target.value)}
           />
+
+          <div className="space-y-2">
+            <input
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              onChange={handleImageChange}
+              className="w-full text-sm text-gray-700 file:mr-3 file:rounded-lg file:border-0 file:bg-amber-100 file:px-3 file:py-2 file:text-amber-800 file:font-medium hover:file:bg-amber-200"
+            />
+            {imagePreview && (
+              <img
+                src={imagePreview}
+                alt="Preview"
+                className="h-16 w-16 rounded-lg object-cover border border-gray-200"
+              />
+            )}
+          </div>
 
           <div className="space-y-2">
             <select
@@ -584,22 +685,46 @@ return (
 
     {/* Lista */}
     <div className="rounded-2xl border border-gray-200 bg-white shadow-sm overflow-hidden">
-      <div className="px-5 py-4 border-b bg-gray-50">
-        <h2 className="font-semibold text-gray-900">Listado de productos</h2>
-        <p className="text-sm text-gray-600">
-          Edita nombre, unidad, categoría, precio, stock y activación
-        </p>
+      <div className="px-5 py-4 border-b bg-gray-50 space-y-3">
+        <div>
+          <h2 className="font-semibold text-gray-900">Listado de productos</h2>
+          <p className="text-sm text-gray-600">
+            Edita nombre, unidad, categoría, precio, stock y activación
+          </p>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <label className="text-sm font-medium text-gray-700">Filtrar por categoría:</label>
+          <select
+            className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900"
+            value={listCategoryFilter}
+            onChange={(e) => setListCategoryFilter(e.target.value)}
+          >
+            <option value="">Todas las categorías</option>
+            {categories.map((cat) => (
+              <option key={cat.id} value={String(cat.id)}>
+                {cat.name}
+              </option>
+            ))}
+          </select>
+
+          {listCategoryFilter && (
+            <span className="text-xs text-gray-500">
+              {filteredItems.length} {filteredItems.length === 1 ? "producto" : "productos"}
+            </span>
+          )}
+        </div>
       </div>
 
-      {items.length === 0 ? (
+      {filteredItems.length === 0 ? (
         <div className="p-6 text-center text-gray-600">
-          No hay productos todavía.
+          {listCategoryFilter ? "No hay productos en esta categoría." : "No hay productos todavía."}
         </div>
       ) : (
         <>
           {/* Mobile */}
           <div className="divide-y md:hidden">
-            {items.map((p) => {
+            {filteredItems.map((p) => {
               const isEditing = editingId === p.id;
 
               return (
@@ -658,7 +783,10 @@ return (
                     </>
                   ) : (
                     <>
-                      <div className="font-semibold text-gray-900">{p.name}</div>
+                      <div className="flex items-center gap-3">
+                        <ProductThumbnail imageUrl={p.imageUrl} size="h-14 w-14" />
+                        <div className="font-semibold text-gray-900">{p.name}</div>
+                      </div>
 
                       <div className="grid grid-cols-2 gap-2 text-sm">
                         <div className="text-gray-500">Unidad</div>
@@ -716,6 +844,19 @@ return (
                       </>
                     ) : (
                       <>
+                        <label className="cursor-pointer px-3 py-2 rounded-lg border border-blue-200 text-blue-700 text-xs hover:bg-blue-50">
+                          {p.imageUrl ? "Cambiar foto" : "Agregar foto"}
+                          <input
+                            type="file"
+                            accept="image/jpeg,image/png,image/webp"
+                            className="hidden"
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              if (file) uploadImageForProduct(p.id, file);
+                              e.target.value = "";
+                            }}
+                          />
+                        </label>
                         <button className="px-3 py-2 rounded-lg border border-amber-300 text-amber-700 text-xs hover:bg-amber-50" onClick={() => startEdit(p)}>
                           Editar
                         </button>
@@ -743,7 +884,7 @@ return (
                 <div className="col-span-2 text-right">Acciones</div>
               </div>
 
-              {items.map((p, idx) => {
+              {filteredItems.map((p, idx) => {
                 const isEditing = editingId === p.id;
 
                 return (
@@ -763,7 +904,10 @@ return (
                           }
                         />
                       ) : (
-                        <span className="font-medium text-gray-900">{p.name}</span>
+                        <div className="flex items-center gap-2">
+                          <ProductThumbnail imageUrl={p.imageUrl} size="h-9 w-9" />
+                          <span className="font-medium text-gray-900 truncate">{p.name}</span>
+                        </div>
                       )}
                     </div>
 
@@ -858,7 +1002,7 @@ return (
                       </button>
                     </div>
 
-                    <div className="col-span-2 flex justify-end gap-2">
+                    <div className="col-span-2 flex justify-end gap-1">
                       {isEditing ? (
                         <>
                           <button className="px-3 py-1 rounded-lg bg-black text-white text-xs" onClick={() => saveEdit(p.id)}>
@@ -870,10 +1014,23 @@ return (
                         </>
                       ) : (
                         <>
-                          <button className="px-3 py-1 rounded-lg border border-amber-300 text-amber-700 text-xs hover:bg-amber-50" onClick={() => startEdit(p)}>
+                          <label className="cursor-pointer flex items-center justify-center h-7 w-7 rounded-lg border border-blue-200 text-blue-700 hover:bg-blue-50" title={p.imageUrl ? "Cambiar foto" : "Agregar foto"}>
+                            📷
+                            <input
+                              type="file"
+                              accept="image/jpeg,image/png,image/webp"
+                              className="hidden"
+                              onChange={(e) => {
+                                const file = e.target.files?.[0];
+                                if (file) uploadImageForProduct(p.id, file);
+                                e.target.value = "";
+                              }}
+                            />
+                          </label>
+                          <button className="px-2 py-1 rounded-lg border border-amber-300 text-amber-700 text-xs hover:bg-amber-50" onClick={() => startEdit(p)}>
                             Editar
                           </button>
-                          <button className="px-3 py-1 rounded-lg border border-red-200 text-red-600 text-xs hover:bg-red-50" onClick={() => removeProduct(p.id)}>
+                          <button className="px-2 py-1 rounded-lg border border-red-200 text-red-600 text-xs hover:bg-red-50" onClick={() => removeProduct(p.id)}>
                             Eliminar
                           </button>
                         </>

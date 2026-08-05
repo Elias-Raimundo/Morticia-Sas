@@ -44,3 +44,16 @@ export const deleteProduct = async (req, res, next) => {
     next(e);
   }
 };
+
+export const uploadProductImage = async (req, res, next) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: "No se envió ninguna imagen" });
+    }
+
+    const product = await productService.uploadProductImage(req.params.id, req.file);
+    res.json(product);
+  } catch (e) {
+    next(e);
+  }
+};

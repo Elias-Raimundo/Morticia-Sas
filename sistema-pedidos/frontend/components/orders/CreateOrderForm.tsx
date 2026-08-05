@@ -11,6 +11,7 @@ type Product = {
   price: number;
   stock: number;
   categoryId?: number | null;
+  imageUrl?: string | null;
   category?:  {
     id: number;
     name: string;
@@ -34,6 +35,26 @@ type DraftOrder = {
   comments: string | null;
   items: DraftItem[];
 };
+
+function ProductThumbnail({ imageUrl, size = "h-12 w-12" }: { imageUrl?: string | null; size?: string }) {
+  if (imageUrl) {
+    return (
+      <img
+        src={imageUrl}
+        alt=""
+        className={`${size} rounded-lg object-cover border border-gray-200 bg-gray-50 shrink-0`}
+      />
+    );
+  }
+
+  return (
+    <div className={`${size} rounded-lg border border-gray-200 bg-gray-50 shrink-0 flex items-center justify-center text-gray-300`}>
+      <svg xmlns="http://www.w3.org/2000/svg" className="h-1/2 w-1/2" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909M3 4.5h18M3.75 21h16.5a1.5 1.5 0 001.5-1.5V4.5a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 4.5v15a1.5 1.5 0 001.5 1.5z" />
+      </svg>
+    </div>
+  );
+}
 
 export default function CreateOrderForm({ onSent }: { onSent?: () => void }) {
   const [draft, setDraft] = useState<DraftOrder | null>(null);
@@ -271,26 +292,30 @@ export default function CreateOrderForm({ onSent }: { onSent?: () => void }) {
                           className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-left transition hover:bg-amber-50 disabled:cursor-not-allowed disabled:opacity-50"
                         >
                           <div className="flex items-start justify-between gap-4">
-                            <div className="flex min-w-0 flex-col">
-                              <span className="truncate text-sm font-semibold text-gray-900">
-                                {p.name}
-                              </span>
+                            <div className="flex min-w-0 items-center gap-3">
+                              <ProductThumbnail imageUrl={p.imageUrl} size="h-12 w-12" />
 
-                              <span className="mt-1 text-xs text-gray-500">
-                                Unidad: {p.unit}
-                              </span>
+                              <div className="flex min-w-0 flex-col">
+                                <span className="truncate text-sm font-semibold text-gray-900">
+                                  {p.name}
+                                </span>
 
-                              <span
-                                className={`mt-1 text-xs font-medium ${
-                                  p.stock > 5
-                                    ? "text-green-600"
-                                    : p.stock > 0
-                                    ? "text-amber-600"
-                                    : "text-red-600"
-                                }`}
-                              >
-                                Stock disponible: {p.stock}
-                              </span>
+                                <span className="mt-1 text-xs text-gray-500">
+                                  Unidad: {p.unit}
+                                </span>
+
+                                <span
+                                  className={`mt-1 text-xs font-medium ${
+                                    p.stock > 5
+                                      ? "text-green-600"
+                                      : p.stock > 0
+                                      ? "text-amber-600"
+                                      : "text-red-600"
+                                  }`}
+                                >
+                                  Stock disponible: {p.stock}
+                                </span>
+                              </div>
                             </div>
 
                             <span className="whitespace-nowrap text-sm font-semibold text-gray-800">
