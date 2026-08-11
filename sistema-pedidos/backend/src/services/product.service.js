@@ -113,21 +113,6 @@ export const updateProduct = async (id, data) => {
   });
 };
 
-export const getCapitalTotal = async () => {
-  const products = await prisma.product.findMany({
-    where: { active: true },
-    select: { internalPrice: true, stock: true, name: true },
-  });
-
-  let capitalTotal = 0;
-  const detail = products.map((p) => {
-    const subtotal = (p.internalPrice ?? 0) * p.stock;
-    capitalTotal += subtotal;
-    return { name: p.name, stock: p.stock, internalPrice: p.internalPrice, subtotal };
-  });
-
-  return { capitalTotal, detail };
-};
 
 export const getCapitalTotal = async () => {
   const products = await prisma.product.findMany({
