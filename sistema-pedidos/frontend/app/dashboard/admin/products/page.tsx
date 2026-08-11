@@ -9,6 +9,7 @@ type Product = {
   name: string;
   unit: string;
   price: number;
+  internalPrice?: number | null; // 👈 nuevo
   stock: number;
   active: boolean;
   categoryId?: number | null;
@@ -23,7 +24,8 @@ type EditForm = {
   name: string;
   unit: string;
   price: string;
-  stock: string; 
+  internalPrice: string; // 👈 nuevo
+  stock: string;
   categoryId: string;
 };
 
@@ -66,12 +68,15 @@ export default function AdminProductsPage() {
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [listCategoryFilter, setListCategoryFilter] = useState("");
   const [listSearchQuery, setListSearchQuery] = useState("");
+  const [internalPrice, setInternalPrice] = useState("");
+  const [capitalTotal, setCapitalTotal] = useState<number | null>(null);
 
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editForm, setEditForm] = useState<EditForm>({
     name: "",
     unit: "",
     price: "",
+    internalPrice: "",
     stock: "",
     categoryId: "",
   });
@@ -87,15 +92,19 @@ export default function AdminProductsPage() {
   const load = async () => {
     setLoading(true);
     try {
-      const [productsRes, categoriesRes] = await Promise.all([
+      const [productsRes, categoriesRes, capitalRes] = await Promise.all([
         apiFetch("/api/products/admin"),
         apiFetch("/api/categories"),
+        apiFetch("/api/products/admin/capital"),
       ]);
 
       const productsData = await productsRes.json().catch(() => []);
       const categoriesData = await categoriesRes.json().catch(() => []);
+      const capitalData = await capitalRes.json().catch(() => null);
+
       setItems(Array.isArray(productsData) ? productsData : []);
       setCategories(Array.isArray(categoriesData) ? categoriesData : []);
+      setCapitalTotal(capitalRes.ok && capitalData ? capitalData.capitalTotal : null);
     } finally {
       setLoading(false);
     }
@@ -113,6 +122,7 @@ export default function AdminProductsPage() {
           name,
           unit,
           price: Number(price),
+          internalPrice: internalPrice ? Number(internalPrice) : null, // 👈 nuevo
           stock: Number(stock),
           categoryId: categoryId ? Number(categoryId) : null,
         }),
@@ -145,6 +155,7 @@ export default function AdminProductsPage() {
       setName("");
       setUnit("");
       setPrice("");
+      setInternalPrice(""); 
       setStock("");
       setCategoryId("");
       setImageFile(null);
@@ -184,6 +195,7 @@ export default function AdminProductsPage() {
       name: p.name,
       unit: p.unit,
       price: String(p.price),
+      internalPrice: p.internalPrice != null ? String(p.internalPrice) : "",
       stock: String(p.stock),
       categoryId: p.categoryId ? String(p.categoryId) : "",
     });
@@ -195,6 +207,7 @@ export default function AdminProductsPage() {
       name: "",
       unit: "",
       price: "",
+      internalPrice: "",
       stock: "",
       categoryId: "",
     });
@@ -208,6 +221,7 @@ export default function AdminProductsPage() {
           name: editForm.name,
           unit: editForm.unit,
           price: Number(editForm.price),
+          internalPrice: editForm.internalPrice ? Number(editForm.internalPrice) : null,
           stock: Number(editForm.stock),
           categoryId: editForm.categoryId ? Number(editForm.categoryId) : null,
         }),
@@ -439,6 +453,17 @@ return (
         </div>
       </div>
     </div>
+    {capitalTotal !== null && (
+      <div className="rounded-2xl border border-gray-800 bg-gray-900 shadow-sm p-5 flex items-center justify-between">
+        <div>
+          <p className="text-sm text-gray-400">Capital total invertido en stock</p>
+          <p className="text-3xl font-bold text-amber-400">
+            ${capitalTotal.toLocaleString("es-AR", { minimumFractionDigits: 2 })}
+          </p>
+        </div>
+        <span className="text-xs text-gray-500">Solo visible para admin</span>
+      </div>
+    )}
 
     {/* Crear producto */}
     <div className="rounded-2xl border border-gray-200 bg-white shadow-sm overflow-hidden">
@@ -470,6 +495,13 @@ return (
             placeholder="Precio"
             value={price}
             onChange={(e) => setPrice(e.target.value)}
+          />
+
+          <input 
+            className="border border-gray-300 bg-white px-3 py-2 rounded-lg text-gray-900 placeholder:text-gray-400"
+            placeholder="Precio costo"
+            value={internalPrice}
+            onChange={(e) => setInternalPrice(e.target.value)}
           />
 
           <input
@@ -770,6 +802,14 @@ return (
 
                       <input
                         className="w-full border border-gray-300 rounded-lg px-3 py-2 text-gray-900"
+                        value={editForm.internalPrice}
+                        onChange={(e) =>
+                          setEditForm((prev) => ({ ...prev, internalPrice: e.target.value }))
+                        }
+                      />
+
+                      <input
+                        className="w-full border border-gray-300 rounded-lg px-3 py-2 text-gray-900"
                         value={editForm.stock}
                         onChange={(e) =>
                           setEditForm((prev) => ({ ...prev, stock: e.target.value }))
@@ -813,6 +853,11 @@ return (
                         <div className="text-gray-500">Precio</div>
                         <div className="text-right text-gray-900">
                           ${Number(p.price).toLocaleString()}
+                        </div>
+
+                        <div className="text-gray-500">Precio costo</div>
+                        <div className="text-right text-gray-900">
+                          {p.internalPrice != null ? `$${Number(p.internalPrice).toLocaleString()}` : "N/A"}
                         </div>
 
                         <div className="text-gray-500">Stock</div>
@@ -886,12 +931,16 @@ return (
 
           {/* Desktop */}
           <div className="hidden md:block overflow-x-auto">
-            <div className="min-w-[850px]">
-              <div className="grid grid-cols-12 gap-2 px-4 py-3 border-b font-semibold text-sm bg-amber-50 text-gray-800">
-                <div className="col-span-2">Nombre</div>
+            <div className="min-w-[1050px]">
+              <div
+                className="grid gap-2 px-4 py-3 border-b font-semibold text-sm bg-amber-50 text-gray-800"
+                style={{ gridTemplateColumns: "repeat(14, minmax(0, 1fr))" }}
+              >
+                <div className="col-span-3">Nombre</div>
                 <div className="col-span-2">Unidad</div>
                 <div className="col-span-2">Categoría</div>
-                <div className="col-span-2">Precio</div>
+                <div className="col-span-1">Precio</div>
+                <div className="col-span-2 text-amber-700">Costo interno</div>
                 <div className="col-span-1">Stock</div>
                 <div className="col-span-1 text-right">Act.</div>
                 <div className="col-span-2 text-right">Acciones</div>
@@ -903,11 +952,12 @@ return (
                 return (
                   <div
                     key={p.id}
-                    className={`grid grid-cols-12 gap-2 px-4 py-3 border-b text-sm items-center ${
+                    className={`grid gap-2 px-4 py-3 border-b text-sm items-center ${
                       idx % 2 === 0 ? "bg-white" : "bg-gray-50/60"
                     }`}
+                    style = {{ gridTemplateColumns: "repeat(14, minmax(0, 1fr))" }}
                   >
-                    <div className="col-span-2">
+                    <div className="col-span-3">
                       {isEditing ? (
                         <input
                           className="w-full border border-gray-300 rounded-lg px-2 py-1 text-gray-900"
@@ -964,7 +1014,7 @@ return (
                       )}
                     </div>
 
-                    <div className="col-span-2">
+                    <div className="col-span-1">
                       {isEditing ? (
                         <input
                           className="w-full border border-gray-300 rounded-lg px-2 py-1 text-gray-900"
@@ -976,6 +1026,22 @@ return (
                       ) : (
                         <span className="text-gray-900">
                           ${Number(p.price).toLocaleString()}
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="col-span-2">
+                      {isEditing ? (
+                        <input
+                          className="w-full border border-amber-300 bg-amber-50 rounded-lg px-2 py-1 text-gray-900"
+                          value={editForm.internalPrice}
+                          onChange={(e) =>
+                            setEditForm((prev) => ({ ...prev, internalPrice: e.target.value }))
+                          }
+                        />
+                      ) : (
+                        <span className="text-amber-700 font-medium">
+                          {p.internalPrice != null ? `$${Number(p.internalPrice).toLocaleString()}` : "—"}
                         </span>
                       )}
                     </div>
