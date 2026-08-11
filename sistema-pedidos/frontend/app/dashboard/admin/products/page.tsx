@@ -69,7 +69,12 @@ export default function AdminProductsPage() {
   const [listCategoryFilter, setListCategoryFilter] = useState("");
   const [listSearchQuery, setListSearchQuery] = useState("");
   const [internalPrice, setInternalPrice] = useState("");
-  const [capitalTotal, setCapitalTotal] = useState<number | null>(null);
+  const [stats, setStats] = useState<{
+    capitalTotal: number;
+    saleTotal: number;
+    margin: number;
+    activeProductsCount: number;
+  } | null>(null);
 
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editForm, setEditForm] = useState<EditForm>({
@@ -104,7 +109,7 @@ export default function AdminProductsPage() {
 
       setItems(Array.isArray(productsData) ? productsData : []);
       setCategories(Array.isArray(categoriesData) ? categoriesData : []);
-      setCapitalTotal(capitalRes.ok && capitalData ? capitalData.capitalTotal : null);
+      setStats(capitalRes.ok && capitalData ? capitalData : null);
     } finally {
       setLoading(false);
     }
@@ -453,15 +458,37 @@ return (
         </div>
       </div>
     </div>
-    {capitalTotal !== null && (
-      <div className="rounded-2xl border border-gray-800 bg-gray-900 shadow-sm p-5 flex items-center justify-between">
-        <div>
-          <p className="text-sm text-gray-400">Capital total invertido en stock</p>
-          <p className="text-3xl font-bold text-amber-400">
-            ${capitalTotal.toLocaleString("es-AR", { minimumFractionDigits: 2 })}
+    {stats !== null && (
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+        <div className="rounded-2xl border border-gray-800 bg-gray-900 shadow-sm p-5">
+          <p className="text-sm text-gray-400">Capital invertido en stock</p>
+          <p className="mt-1 text-2xl md:text-3xl font-bold text-amber-400">
+            ${stats.capitalTotal.toLocaleString("es-AR", { minimumFractionDigits: 2 })}
+          </p>
+          <p className="mt-1 text-xs text-gray-500">Costo interno × stock</p>
+        </div>
+
+        <div className="rounded-2xl border border-gray-800 bg-gray-900 shadow-sm p-5">
+          <p className="text-sm text-gray-400">Valor de venta del stock</p>
+          <p className="mt-1 text-2xl md:text-3xl font-bold text-white">
+            ${stats.saleTotal.toLocaleString("es-AR", { minimumFractionDigits: 2 })}
+          </p>
+          <p className="mt-1 text-xs text-gray-500">Precio de lista × stock</p>
+        </div>
+
+        <div className="rounded-2xl border border-gray-800 bg-gray-900 shadow-sm p-5">
+          <p className="text-sm text-gray-400">Margen potencial</p>
+          <p
+            className={`mt-1 text-2xl md:text-3xl font-bold ${
+              stats.margin >= 0 ? "text-green-400" : "text-red-400"
+            }`}
+          >
+            ${stats.margin.toLocaleString("es-AR", { minimumFractionDigits: 2 })}
+          </p>
+          <p className="mt-1 text-xs text-gray-500">
+            {stats.activeProductsCount} {stats.activeProductsCount === 1 ? "producto activo" : "productos activos"}
           </p>
         </div>
-        <span className="text-xs text-gray-500">Solo visible para admin</span>
       </div>
     )}
 
@@ -936,8 +963,8 @@ return (
                 className="grid gap-2 px-4 py-3 border-b font-semibold text-sm bg-amber-50 text-gray-800"
                 style={{ gridTemplateColumns: "repeat(14, minmax(0, 1fr))" }}
               >
-                <div className="col-span-3">Nombre</div>
-                <div className="col-span-2">Unidad</div>
+                <div className="col-span-4">Nombre</div>
+                <div className="col-span-1">Unidad</div>
                 <div className="col-span-2">Categoría</div>
                 <div className="col-span-1">Precio</div>
                 <div className="col-span-2 text-amber-700">Costo interno</div>
@@ -957,7 +984,7 @@ return (
                     }`}
                     style = {{ gridTemplateColumns: "repeat(14, minmax(0, 1fr))" }}
                   >
-                    <div className="col-span-3">
+                    <div className="col-span-4">
                       {isEditing ? (
                         <input
                           className="w-full border border-gray-300 rounded-lg px-2 py-1 text-gray-900"
@@ -974,7 +1001,7 @@ return (
                       )}
                     </div>
 
-                    <div className="col-span-2">
+                    <div className="col-span-1">
                       {isEditing ? (
                         <input
                           className="w-full border border-gray-300 rounded-lg px-2 py-1 text-gray-900"

@@ -129,6 +129,40 @@ export const getCapitalTotal = async () => {
   return { capitalTotal, detail };
 };
 
+export const getCapitalTotal = async () => {
+  const products = await prisma.product.findMany({
+    where: { active: true },
+    select: { internalPrice: true, stock: true, price: true, name: true },
+  });
+
+  let capitalTotal = 0;
+  let saleTotal = 0;
+
+  const detail = products.map((p) => {
+    const costSubtotal = (p.internalPrice ?? 0) * p.stock;
+    const saleSubtotal = p.price * p.stock;
+    capitalTotal += costSubtotal;
+    saleTotal += saleSubtotal;
+
+    return {
+      name: p.name,
+      stock: p.stock,
+      internalPrice: p.internalPrice,
+      price: p.price,
+      costSubtotal,
+      saleSubtotal,
+    };
+  });
+
+  return {
+    capitalTotal,
+    saleTotal,
+    margin: saleTotal - capitalTotal,
+    activeProductsCount: products.length,
+    detail,
+  };
+};
+
 export const deleteProduct = async (id) => {
   const productId = Number(id);
   if (Number.isNaN(productId)) throw new AppError("ID inválido", 400);
