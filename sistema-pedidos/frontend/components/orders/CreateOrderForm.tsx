@@ -70,6 +70,8 @@ export default function CreateOrderForm({ onSent }: { onSent?: () => void }) {
   const [deliveryDate, setDeliveryDate] = useState<string>("");
   const [categoryFilter, setCategoryFilter] = useState("");
 
+  const [zoomedImage, setZoomedImage] = useState<string | null>(null);
+
   const filteredProducts = useMemo(() => {
     const s = q.trim().toLowerCase();
     return products.filter((p)  => {
@@ -237,6 +239,7 @@ export default function CreateOrderForm({ onSent }: { onSent?: () => void }) {
   if (!draft) return <div className="text-gray-600">No se pudo cargar el pedido.</div>;
 
   return (
+    <>
     <div className="grid grid-cols-1 gap-5 lg:grid-cols-12">
       {/* LEFT */}
       <div className="min-w-0 lg:col-span-4 rounded-2xl border border-gray-200 bg-white shadow-sm overflow-hidden">
@@ -284,45 +287,59 @@ export default function CreateOrderForm({ onSent }: { onSent?: () => void }) {
 
                     <div className="space-y-2">
                       {items.map((p) => (
-                        <button
+                        <div
                           key={p.id}
-                          type="button"
-                          onClick={() => addProduct(p.id)}
-                          disabled={busy || p.stock === 0}
-                          className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-left transition hover:bg-amber-50 disabled:cursor-not-allowed disabled:opacity-50"
+                          className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 transition hover:bg-amber-50"
                         >
-                          <div className="flex items-start justify-between gap-4">
-                            <div className="flex min-w-0 items-center gap-3">
+                          <div className="flex items-start gap-3">
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if (p.imageUrl) setZoomedImage(p.imageUrl);
+                              }}
+                              className="shrink-0 cursor-zoom-in"
+                              title="Ver foto más grande"
+                            >
                               <ProductThumbnail imageUrl={p.imageUrl} size="h-20 w-20" />
+                            </button>
 
-                              <div className="flex min-w-0 flex-col">
-                                <span className="truncate text-sm font-semibold text-gray-900">
-                                  {p.name}
-                                </span>
+                            <button
+                              type="button"
+                              onClick={() => addProduct(p.id)}
+                              disabled={busy || p.stock === 0}
+                              className="min-w-0 flex-1 text-left disabled:cursor-not-allowed disabled:opacity-50"
+                            >
+                              <div className="flex items-start justify-between gap-3">
+                                <div className="min-w-0 flex-1">
+                                  <span className="block text-sm font-semibold text-gray-900 break-words">
+                                    {p.name}
+                                  </span>
 
-                                <span className="mt-1 text-xs text-gray-500">
-                                  Unidad: {p.unit}
-                                </span>
+                                  <span className="mt-1 block text-xs text-gray-500">
+                                    Unidad: {p.unit}
+                                  </span>
 
-                                <span
-                                  className={`mt-1 text-xs font-medium ${
-                                    p.stock > 5
-                                      ? "text-green-600"
-                                      : p.stock > 0
-                                      ? "text-amber-600"
-                                      : "text-red-600"
-                                  }`}
-                                >
-                                  Stock disponible: {p.stock}
+                                  <span
+                                    className={`mt-1 block text-xs font-medium ${
+                                      p.stock > 5
+                                        ? "text-green-600"
+                                        : p.stock > 0
+                                        ? "text-amber-600"
+                                        : "text-red-600"
+                                    }`}
+                                  >
+                                    Stock disponible: {p.stock}
+                                  </span>
+                                </div>
+
+                                <span className="whitespace-nowrap text-sm font-semibold text-gray-800">
+                                  ${p.price.toLocaleString()}
                                 </span>
                               </div>
-                            </div>
-
-                            <span className="whitespace-nowrap text-sm font-semibold text-gray-800">
-                              ${p.price.toLocaleString()}
-                            </span>
+                            </button>
                           </div>
-                        </button>
+                        </div>
                       ))}
                     </div>
                   </div>
@@ -475,5 +492,28 @@ export default function CreateOrderForm({ onSent }: { onSent?: () => void }) {
         </div>
       </div>
     </div>
+
+    {zoomedImage && (
+      <div
+        className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
+        onClick={() => setZoomedImage(null)}
+      >
+        <img
+          src={zoomedImage}
+          alt=""
+          className="max-h-[85vh] max-w-[90vw] rounded-2xl object-contain shadow-2xl"
+          onClick={(e) => e.stopPropagation()}
+        />
+
+        <button
+          type="button"
+          onClick={() => setZoomedImage(null)}
+          className="absolute right-4 top-4 rounded-full bg-white/90 px-3 py-2 text-sm font-semibold text-gray-900 hover:bg-white"
+        >
+          Cerrar ✕
+        </button>
+      </div>
+    )}
+  </>
   );
 }

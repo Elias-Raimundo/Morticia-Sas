@@ -16,6 +16,7 @@ export default function AdminPage() {
   const [loading, setLoading] = useState(true);
   const [selectedClientId, setSelectedClientId] = useState<number | null>(null);
   const [detailsOpen, setDetailsOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
 
   const load = async () => {
     setLoading(true);
@@ -42,6 +43,10 @@ export default function AdminPage() {
       maximumFractionDigits: 0,
     }).format(n);
 
+  const filteredItems = items.filter((item) =>
+    item.name.toLowerCase().includes(searchQuery.trim().toLowerCase())
+  );
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-amber-50 via-white to-white p-6 space-y-6">
       <div className="rounded-2xl border border-amber-200 bg-white shadow-sm overflow-hidden">
@@ -55,15 +60,27 @@ export default function AdminPage() {
       </div>
 
       <div className="rounded-2xl border border-gray-200 bg-white shadow-sm overflow-hidden">
+        <div className="px-5 py-4 border-b bg-gray-50">
+          <input
+            type="text"
+            placeholder="Buscar cliente por nombre..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full max-w-sm rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400"
+          />
+        </div>
+
         {loading ? (
           <div className="p-6 text-gray-600">Cargando...</div>
         ) : items.length === 0 ? (
           <div className="p-6 text-gray-600">No hay clientes.</div>
+        ) : filteredItems.length === 0 ? (
+          <div className="p-6 text-gray-600">No hay clientes que coincidan con la búsqueda.</div>
         ) : (
           <>
             {/* Mobile */}
             <div className="divide-y md:hidden">
-              {items.map((item) => (
+              {filteredItems.map((item) => (
                 <div key={item.id} className="p-4 space-y-3">
                   <div>
                     <div className="font-semibold text-gray-900">{item.name}</div>
@@ -108,7 +125,7 @@ export default function AdminPage() {
                   <div className="col-span-2 text-right">Acción</div>
                 </div>
 
-                {items.map((item, idx) => (
+                {filteredItems.map((item, idx) => (
                   <div
                     key={item.id}
                     className={`grid grid-cols-12 gap-2 px-4 py-3 border-b text-sm items-center ${
