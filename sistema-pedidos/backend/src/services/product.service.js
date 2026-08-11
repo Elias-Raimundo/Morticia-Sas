@@ -5,8 +5,18 @@ import { supabase } from "../utils/supabaseClient.js";
 export const listActiveProducts = async () => {
   return prisma.product.findMany({
     where: { active: true },
-    include: {
+    select: {
+      id: true,
+      name: true,
+      unit: true,
+      price: true,
+      active: true,
+      createdAt: true,
+      stock: true,
+      categoryId: true,
       category: true,
+      imageUrl: true,
+      // internalPrice queda afuera a propósito
     },
     orderBy: { name: "asc" },
   });
@@ -22,19 +32,21 @@ export const listAllProductsAdmin = async () => {
   });
 };
 
-export const createProduct = async ({ name, unit, price, stock, categoryId }) => {
+export const createProduct = async ({ name, unit, price, internalPrice, stock, categoryId }) => {
   if (!name || !unit) throw new AppError("Datos inválidos", 400);
   if (price == null || Number(price) <= 0) throw new AppError("Precio inválido", 400);
   if (stock == null || Number(stock) < 0) throw new AppError("Stock inválido", 400);
+
+  if (internalPrice != null && Number(internalPrice) < 0) {
+    throw new AppError("Precio interno inválido", 400);
+  }
 
   let finalCategoryId = null;
   if (categoryId != null) {
     const catId = Number(categoryId);
     if (Number.isNaN(catId)) throw new AppError("categoryId inválido", 400);
-
     const categoryExists = await prisma.category.findUnique({ where: { id: catId } });
     if (!categoryExists) throw new AppError("Categoría no encontrada", 400);
-
     finalCategoryId = catId;
   }
 
@@ -43,6 +55,7 @@ export const createProduct = async ({ name, unit, price, stock, categoryId }) =>
       name: name.trim(),
       unit: unit.trim(),
       price: Number(price),
+      internalPrice: internalPrice != null ? Number(internalPrice) : null,
       stock: Number(stock),
       categoryId: finalCategoryId,
       active: true,
@@ -70,6 +83,15 @@ export const updateProduct = async (id, data) => {
     if (Number.isNaN(p) || p <= 0) throw new AppError("Precio inválido", 400);
     payload.price = p;
   }
+  if (data.internalPrice !== undefined) {
+    if (data.internalPrice === null) {
+      payload.internalPrice = null;
+    } else {
+      const ip = Number(data.internalPrice);
+      if (Number.isNaN(ip) || ip < 0) throw new AppError("Precio interno inválido", 400);
+      payload.internalPrice = ip;
+    }
+  }
   if (data.active != null) payload.active = Boolean(data.active);
 
   if (data.categoryId !== undefined) {
@@ -78,10 +100,8 @@ export const updateProduct = async (id, data) => {
     } else {
       const catId = Number(data.categoryId);
       if (Number.isNaN(catId)) throw new AppError("categoryId inválido", 400);
-
       const categoryExists = await prisma.category.findUnique({ where: { id: catId } });
       if (!categoryExists) throw new AppError("Categoría no encontrada", 400);
-
       payload.categoryId = catId;
     }
   }
@@ -89,10 +109,24 @@ export const updateProduct = async (id, data) => {
   return prisma.product.update({
     where: { id: productId },
     data: payload,
-    include: {
-      category: true,
-    }
+    include: { category: true },
   });
+};
+
+export const getCapitalTotal = async () => {
+  const products = await prisma.product.findMany({
+    where: { active: true },
+    select: { internalPrice: true, stock: true, name: true },
+  });
+
+  let capitalTotal = 0;
+  const detail = products.map((p) => {
+    const subtotal = (p.internalPrice ?? 0) * p.stock;
+    capitalTotal += subtotal;
+    return { name: p.name, stock: p.stock, internalPrice: p.internalPrice, subtotal };
+  });
+
+  return { capitalTotal, detail };
 };
 
 export const deleteProduct = async (id) => {

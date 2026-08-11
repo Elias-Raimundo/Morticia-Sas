@@ -20,6 +20,9 @@ router.patch("/admin/:id", authMiddleware, requireRole("admin"), productControll
 // ADMIN: eliminar (solo si no tiene pedidos asociados)
 router.delete("/admin/:id", authMiddleware, requireRole("admin"), productController.deleteProduct);
 
+// ADMIN: capital total invertido en stock (costo interno)
+router.get("/admin/capital", authMiddleware, requireRole("admin"), productController.getCapitalTotal);
+
 // ADMIN: subir/reemplazar foto del producto
 router.post(
   "/admin/:id/image",

@@ -57,3 +57,12 @@ export const uploadProductImage = async (req, res, next) => {
     next(e);
   }
 };
+
+export const getCapitalTotal = async (req, res, next) => {
+  try {
+    const result = await productService.getCapitalTotal();
+    res.json(result);
+  } catch (e) {
+    next(e);
+  }
+};

@@ -29,6 +29,7 @@ model Product {
   name      String
   unit      String
   price     Float
+  internalPrice Float?
   active    Boolean     @default(true)
   createdAt DateTime    @default(now())
   stock     Int         @default(0)
