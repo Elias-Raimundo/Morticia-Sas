@@ -51,6 +51,12 @@ export default function HistorialPage() {
 
   
 
+  // La fecha que le importa al negocio es cuándo se CONFIRMÓ el pedido
+  // (cuando el cliente lo envía), no cuándo se creó el borrador del carrito.
+  // Antes se filtraba por createdAt, que podía ser días antes de la compra real.
+  const getOrderDate = (order: { confirmedAt?: string | null; createdAt?: string | null }) =>
+    order.confirmedAt ?? order.createdAt ?? null;
+
   const filteredOrders = orders.filter((order) => {
     
     const matchesClient = 
@@ -58,7 +64,8 @@ export default function HistorialPage() {
     order.user?.name?.toLowerCase().includes(clientFilter.toLowerCase())||
     order.client?.name?.toLowerCase().includes(clientFilter.toLowerCase());
 
-    const orderDate = order.createdAt ? new Date(order.createdAt) : null;
+    const orderDateValue = getOrderDate(order);
+    const orderDate = orderDateValue ? new Date(orderDateValue) : null;
 
     const matchesFrom =
       !dateFrom || !orderDate
@@ -76,6 +83,19 @@ export default function HistorialPage() {
 
     return matchesFrom && matchesTo && matchesClient;
   });
+
+  // Suma de gastos del período: lo realmente gastado (pedidos cancelados no cuentan,
+  // ya que su importe se reintegra en el saldo del cliente).
+  const totalPeriodo = filteredOrders
+    .filter((order) => order.status !== "cancelled")
+    .reduce((acc, order) => acc + Number(order.total ?? 0), 0);
+
+  const formatMoney = (n: number) =>
+    new Intl.NumberFormat("es-AR", {
+      style: "currency",
+      currency: "ARS",
+      maximumFractionDigits: 0,
+    }).format(n);
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-amber-50 via-white to-white">
@@ -107,9 +127,15 @@ export default function HistorialPage() {
                 </p>
               </div>
 
-              <span className="inline-flex w-fit rounded-full bg-amber-100 text-amber-800 px-3 py-1 text-sm font-medium">
-                {filteredOrders.length} {filteredOrders.length === 1 ? "pedido" : "pedidos"}
-              </span>
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="inline-flex w-fit rounded-full bg-amber-100 text-amber-800 px-3 py-1 text-sm font-medium">
+                  {filteredOrders.length} {filteredOrders.length === 1 ? "pedido" : "pedidos"}
+                </span>
+
+                <span className="inline-flex w-fit items-center gap-1 rounded-full bg-emerald-100 text-emerald-800 px-3 py-1 text-sm font-semibold">
+                  Total del período: {formatMoney(totalPeriodo)}
+                </span>
+              </div>
             </div>
 
             <div className={`grid grid-cols-1 gap-3 md:grid-cols-2 ${ isAdmin ? "lg:grid-cols-4" : "lg:grid-cols-3"}`}>

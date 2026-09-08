@@ -21,6 +21,7 @@ interface Order {
   status: OrderStatus;
   userId: number | string;
   createdAt?: string;
+  confirmedAt?: string | null;
   total?: number;
   user?:{
     name?: string;
@@ -129,6 +130,10 @@ export default function OrderCard({
 
   const clientName = order.user?.name || order.client?.name || "Cliente";
 
+  // Mostramos la fecha real de la compra (cuando se confirmó el pedido),
+  // no la fecha en que se creó el borrador del carrito.
+  const displayDate = order.confirmedAt ?? order.createdAt;
+
   const totalUnits =
     order.items?.reduce((acc, item) => acc + Number(item.quantity || 0), 0) ?? 0;
 
@@ -157,7 +162,7 @@ export default function OrderCard({
                     {clientName}
                   </h3>
                   <p className="mt-1 text-sm text-gray-500">
-                    Pedido #{orderId} · {formatDate(order.createdAt)}
+                    Pedido #{orderId} · {formatDate(displayDate)}
                   </p>
                 </>
               ) : (
@@ -166,7 +171,7 @@ export default function OrderCard({
                     Pedido #{orderId}
                   </h3>
                   <p className="mt-1 text-sm text-gray-500">
-                    {formatDate(order.createdAt)}
+                    {formatDate(displayDate)}
                   </p>
                 </>
               )}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { apiFetch } from "@/lib/api";
 import { toast } from "sonner";
 
@@ -72,6 +72,13 @@ export default function CreateOrderForm({ onSent }: { onSent?: () => void }) {
 
   const [zoomedImage, setZoomedImage] = useState<string | null>(null);
 
+  // Barra fija de resumen en mobile: permite saltar directo al pedido
+  // sin tener que scrollear toda la lista de artículos.
+  const cartPanelRef = useRef<HTMLDivElement | null>(null);
+  const scrollToCart = () => {
+    cartPanelRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+
   const filteredProducts = useMemo(() => {
     const s = q.trim().toLowerCase();
     return products.filter((p)  => {
@@ -82,6 +89,16 @@ export default function CreateOrderForm({ onSent }: { onSent?: () => void }) {
       return matchesSearch && matchesCategory;
     });
   }, [q, products, categoryFilter]);
+
+  // Cantidad ya agregada al pedido por producto, para resaltar en el listado
+  // qué productos están seleccionados y con qué cantidad.
+  const cartQtyByProduct = useMemo(() => {
+    const map = new Map<number, number>();
+    for (const it of draft?.items ?? []) {
+      map.set(it.productId, (map.get(it.productId) ?? 0) + it.quantity);
+    }
+    return map;
+  }, [draft?.items]);
 
   const productsByCategory = useMemo(()   => {
     return filteredProducts.reduce((acc, product) => {
@@ -240,7 +257,7 @@ export default function CreateOrderForm({ onSent }: { onSent?: () => void }) {
 
   return (
     <>
-    <div className="grid grid-cols-1 gap-5 lg:grid-cols-12">
+    <div className="grid grid-cols-1 gap-5 pb-24 lg:grid-cols-12 lg:pb-0">
       {/* LEFT */}
       <div className="min-w-0 lg:col-span-4 rounded-2xl border border-gray-200 bg-white shadow-sm overflow-hidden">
         <div className="px-5 py-4 border-b bg-gray-900">
@@ -286,61 +303,82 @@ export default function CreateOrderForm({ onSent }: { onSent?: () => void }) {
                     </div>
 
                     <div className="space-y-2">
-                      {items.map((p) => (
-                        <div
-                          key={p.id}
-                          className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 transition hover:bg-amber-50"
-                        >
-                          <div className="flex items-start gap-3">
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                if (p.imageUrl) setZoomedImage(p.imageUrl);
-                              }}
-                              className="shrink-0 cursor-zoom-in"
-                              title="Ver foto más grande"
-                            >
-                              <ProductThumbnail imageUrl={p.imageUrl} size="h-20 w-20" />
-                            </button>
+                      {items.map((p) => {
+                        const inCartQty = cartQtyByProduct.get(p.id) ?? 0;
+                        const selected = inCartQty > 0;
 
-                            <button
-                              type="button"
-                              onClick={() => addProduct(p.id)}
-                              disabled={busy || p.stock === 0}
-                              className="min-w-0 flex-1 text-left disabled:cursor-not-allowed disabled:opacity-50"
-                            >
-                              <div className="flex items-start justify-between gap-3">
-                                <div className="min-w-0 flex-1">
-                                  <span className="block text-sm font-semibold text-gray-900 break-words">
-                                    {p.name}
+                        return (
+                          <div
+                            key={p.id}
+                            className={`w-full rounded-xl border px-4 py-3 transition ${
+                              selected
+                                ? "border-amber-400 bg-amber-50 ring-1 ring-amber-300"
+                                : "border-gray-200 bg-white hover:bg-amber-50"
+                            }`}
+                          >
+                            <div className="flex items-start gap-3">
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  if (p.imageUrl) setZoomedImage(p.imageUrl);
+                                }}
+                                className="relative shrink-0 cursor-zoom-in"
+                                title="Ver foto más grande"
+                              >
+                                <ProductThumbnail imageUrl={p.imageUrl} size="h-20 w-20" />
+                                {selected && (
+                                  <span className="absolute -right-2 -top-2 flex h-6 min-w-6 items-center justify-center rounded-full bg-amber-500 px-1.5 text-xs font-bold text-white shadow-sm">
+                                    {inCartQty}
                                   </span>
+                                )}
+                              </button>
 
-                                  <span className="mt-1 block text-xs text-gray-500">
-                                    Unidad: {p.unit}
-                                  </span>
+                              <button
+                                type="button"
+                                onClick={() => addProduct(p.id)}
+                                disabled={busy || p.stock === 0}
+                                className="min-w-0 flex-1 text-left disabled:cursor-not-allowed disabled:opacity-50"
+                              >
+                                <div className="flex items-start justify-between gap-3">
+                                  <div className="min-w-0 flex-1">
+                                    <div className="flex flex-wrap items-center gap-2">
+                                      <span className="block text-sm font-semibold text-gray-900 break-words">
+                                        {p.name}
+                                      </span>
+                                      {selected && (
+                                        <span className="inline-flex items-center gap-1 rounded-full bg-amber-500 px-2 py-0.5 text-[11px] font-semibold text-white">
+                                          En el pedido · x{inCartQty}
+                                        </span>
+                                      )}
+                                    </div>
 
-                                  <span
-                                    className={`mt-1 block text-xs font-medium ${
-                                      p.stock > 5
-                                        ? "text-green-600"
-                                        : p.stock > 0
-                                        ? "text-amber-600"
-                                        : "text-red-600"
-                                    }`}
-                                  >
-                                    Stock disponible: {p.stock}
+                                    <span className="mt-1 block text-xs text-gray-500">
+                                      Unidad: {p.unit}
+                                    </span>
+
+                                    <span
+                                      className={`mt-1 block text-xs font-medium ${
+                                        p.stock > 5
+                                          ? "text-green-600"
+                                          : p.stock > 0
+                                          ? "text-amber-600"
+                                          : "text-red-600"
+                                      }`}
+                                    >
+                                      Stock disponible: {p.stock}
+                                    </span>
+                                  </div>
+
+                                  <span className="whitespace-nowrap text-sm font-semibold text-gray-800">
+                                    ${p.price.toLocaleString()}
                                   </span>
                                 </div>
-
-                                <span className="whitespace-nowrap text-sm font-semibold text-gray-800">
-                                  ${p.price.toLocaleString()}
-                                </span>
-                              </div>
-                            </button>
+                              </button>
+                            </div>
                           </div>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   </div>
                 ))}
@@ -351,7 +389,7 @@ export default function CreateOrderForm({ onSent }: { onSent?: () => void }) {
       </div>
 
       {/* RIGHT */}
-      <div className="min-w-0 lg:col-span-8 rounded-2xl border border-gray-200 bg-white shadow-sm overflow-hidden">
+      <div ref={cartPanelRef} className="min-w-0 lg:col-span-8 rounded-2xl border border-gray-200 bg-white shadow-sm overflow-hidden">
         <div className="px-5 py-4 border-b bg-gray-900 flex items-start justify-between gap-4">
           <div>
             <h3 className="font-semibold text-white text-lg">Pedido</h3>
@@ -379,82 +417,142 @@ export default function CreateOrderForm({ onSent }: { onSent?: () => void }) {
             />
           </div>
 
-          {/* Tabla */}
+          {/* Productos del pedido */}
           <div className="rounded-xl border border-gray-200 overflow-hidden">
-            <div className="overflow-x-auto">
-              <div className="min-w-[700px]">
-              <div className="grid grid-cols-12 bg-amber-50 px-3 py-3 text-xs font-semibold text-gray-700 border-b">
-                <div className="col-span-5">Nombre</div>
-                <div className="col-span-2 text-right">Cantidad</div>
-                <div className="col-span-2 text-right">$ c/u</div>
-                <div className="col-span-2 text-right">Sub-total</div>
-                <div className="col-span-1 text-right">X</div>
-              </div>
-
-            {draft.items?.length ? (
-              draft.items.map((it) => (
-                <div
-                  key={it.id}
-                  className="grid grid-cols-12 px-3 py-3 border-b text-sm items-center text-gray-900"
-                >
-                  <div className="col-span-5">
-                    <div className="font-medium">
-                      {it.product?.name ?? `Producto #${it.productId}`}
-                    </div>
-                    {it.product?.unit && (
-                      <div className="text-xs text-gray-500 mt-1">
-                        Unidad: {it.product.unit}
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="col-span-2 flex justify-end">
-                    <input
-                      key = {`${it.id}-${it.quantity}`}
-                      type="number"
-                      min={1}
-                      className="w-20 rounded-lg border border-gray-300 px-2 py-1 text-right text-gray-900"
-                      defaultValue={it.quantity}
-                      disabled={busy}
-                      onBlur={(e) => {
-                        const nextQty = Number(e.target.value);
-                        if (!Number.isFinite(nextQty) || nextQty <1){
-                          e.target.value = String(it.quantity);
-                          return;
-                        }
-                        updateQty(it.id, nextQty);
-                      }}
-                    />
-                  </div>
-
-                  <div className="col-span-2 text-right font-medium text-gray-800">
-                    ${Number(it.unitPrice).toLocaleString()}
-                  </div>
-
-                  <div className="col-span-2 text-right font-semibold text-gray-900">
-                    ${Number(it.subtotal).toLocaleString()}
-                  </div>
-
-                  <div className="col-span-1 flex justify-end">
-                    <button
-                      type="button"
-                      onClick={() => removeItem(it.id)}
-                      disabled={busy}
-                      className="rounded-lg border border-red-200 px-2 py-1 text-red-600 hover:bg-red-50"
-                    >
-                      x
-                    </button>
-                  </div>
-                </div>
-              ))
-            ) : (
+            {!draft.items?.length ? (
               <div className="p-4 text-sm text-gray-500">
                 Todavía no agregaste productos.
               </div>
+            ) : (
+              <>
+                {/* Mobile: tarjetas apiladas, sin scroll horizontal */}
+                <div className="divide-y md:hidden">
+                  {draft.items.map((it) => (
+                    <div key={it.id} className="p-3 space-y-2 text-sm text-gray-900">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <div className="font-medium break-words">
+                            {it.product?.name ?? `Producto #${it.productId}`}
+                          </div>
+                          {it.product?.unit && (
+                            <div className="text-xs text-gray-500 mt-0.5">
+                              Unidad: {it.product.unit}
+                            </div>
+                          )}
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => removeItem(it.id)}
+                          disabled={busy}
+                          className="shrink-0 rounded-lg border border-red-200 px-2 py-1 text-xs font-medium text-red-600 hover:bg-red-50"
+                        >
+                          Quitar
+                        </button>
+                      </div>
+
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="flex items-center gap-2">
+                          <label className="text-xs text-gray-500">Cant.</label>
+                          <input
+                            key={`${it.id}-${it.quantity}`}
+                            type="number"
+                            min={1}
+                            className="w-16 rounded-lg border border-gray-300 px-2 py-1 text-right text-gray-900"
+                            defaultValue={it.quantity}
+                            disabled={busy}
+                            onBlur={(e) => {
+                              const nextQty = Number(e.target.value);
+                              if (!Number.isFinite(nextQty) || nextQty < 1) {
+                                e.target.value = String(it.quantity);
+                                return;
+                              }
+                              updateQty(it.id, nextQty);
+                            }}
+                          />
+                        </div>
+
+                        <div className="text-right">
+                          <div className="text-xs text-gray-500">
+                            ${Number(it.unitPrice).toLocaleString()} c/u
+                          </div>
+                          <div className="font-semibold">
+                            ${Number(it.subtotal).toLocaleString()}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Desktop: tabla */}
+                <div className="hidden md:block">
+                  <div className="grid grid-cols-12 bg-amber-50 px-3 py-3 text-xs font-semibold text-gray-700 border-b">
+                    <div className="col-span-5">Nombre</div>
+                    <div className="col-span-2 text-right">Cantidad</div>
+                    <div className="col-span-2 text-right">$ c/u</div>
+                    <div className="col-span-2 text-right">Sub-total</div>
+                    <div className="col-span-1 text-right">X</div>
+                  </div>
+
+                  {draft.items.map((it) => (
+                    <div
+                      key={it.id}
+                      className="grid grid-cols-12 px-3 py-3 border-b text-sm items-center text-gray-900"
+                    >
+                      <div className="col-span-5">
+                        <div className="font-medium">
+                          {it.product?.name ?? `Producto #${it.productId}`}
+                        </div>
+                        {it.product?.unit && (
+                          <div className="text-xs text-gray-500 mt-1">
+                            Unidad: {it.product.unit}
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="col-span-2 flex justify-end">
+                        <input
+                          key={`${it.id}-${it.quantity}`}
+                          type="number"
+                          min={1}
+                          className="w-20 rounded-lg border border-gray-300 px-2 py-1 text-right text-gray-900"
+                          defaultValue={it.quantity}
+                          disabled={busy}
+                          onBlur={(e) => {
+                            const nextQty = Number(e.target.value);
+                            if (!Number.isFinite(nextQty) || nextQty < 1) {
+                              e.target.value = String(it.quantity);
+                              return;
+                            }
+                            updateQty(it.id, nextQty);
+                          }}
+                        />
+                      </div>
+
+                      <div className="col-span-2 text-right font-medium text-gray-800">
+                        ${Number(it.unitPrice).toLocaleString()}
+                      </div>
+
+                      <div className="col-span-2 text-right font-semibold text-gray-900">
+                        ${Number(it.subtotal).toLocaleString()}
+                      </div>
+
+                      <div className="col-span-1 flex justify-end">
+                        <button
+                          type="button"
+                          onClick={() => removeItem(it.id)}
+                          disabled={busy}
+                          className="rounded-lg border border-red-200 px-2 py-1 text-red-600 hover:bg-red-50"
+                        >
+                          x
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </>
             )}
           </div>
-        </div>
-      </div>
 
           {/* Comentarios */}
           <div className="mt-4">
@@ -492,6 +590,24 @@ export default function CreateOrderForm({ onSent }: { onSent?: () => void }) {
         </div>
       </div>
     </div>
+
+    {/* Barra fija de resumen — solo mobile */}
+    {draft.items?.length ? (
+      <div className="fixed inset-x-0 bottom-0 z-40 border-t border-amber-200 bg-white/95 backdrop-blur px-4 py-3 shadow-[0_-4px_12px_rgba(0,0,0,0.06)] lg:hidden">
+        <button
+          type="button"
+          onClick={scrollToCart}
+          className="flex w-full items-center justify-between gap-3 rounded-xl bg-amber-500 px-4 py-3 text-gray-950 shadow-sm active:scale-[0.98]"
+        >
+          <span className="text-sm font-semibold">
+            {draft.items.length} {draft.items.length === 1 ? "producto" : "productos"}
+          </span>
+          <span className="text-sm font-bold">
+            ${Number(draft.total ?? 0).toLocaleString()} · Ver pedido
+          </span>
+        </button>
+      </div>
+    ) : null}
 
     {zoomedImage && (
       <div

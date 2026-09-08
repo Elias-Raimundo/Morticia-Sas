@@ -19,6 +19,9 @@ export default function Sidebar() {
         { href: "/dashboard/admin/products", label: "Productos" },
         { href: "/dashboard/admin", label: "Administración" },
         { href: "/dashboard/admin/resumen", label: "Resumen" },
+        { href: "/dashboard/admin/proveedores", label: "Proveedores" },
+        { href: "/dashboard/admin/gastos", label: "Gastos" },
+        { href: "/dashboard/admin/bienes", label: "Bienes" },
       ]
     : [
         { href: "/dashboard", label: "Crear pedido" },
@@ -85,7 +88,13 @@ export default function Sidebar() {
       </div>
     </aside>
     <nav className="fixed bottom-0 left-0 right-0 z-50 bg-white/95 border-t border-gray-200 backdrop-blur md:hidden">
-      <div className={`grid ${isAdmin ? "grid-cols-4" : "grid-cols-3"}`}>
+      <div
+        className={
+          isAdmin
+            ? "flex overflow-x-auto"
+            : `grid ${isAdmin ? "grid-cols-4" : "grid-cols-3"}`
+        }
+      >
         {links.map((link) => {
           const active = pathname === link.href;
           
@@ -93,7 +102,9 @@ export default function Sidebar() {
             <Link
               key={link.href}
               href={link.href}
-              className ={`px-2 py-3 text-center text-xs font-medium transition ${
+              className ={`px-2 py-3 text-center text-xs font-medium transition whitespace-nowrap ${
+                isAdmin ? "flex-1 min-w-[84px]" : ""
+              } ${
                 active
                   ? "bg-amber-50 text-amber-700"
                   : "text-gray-600"
