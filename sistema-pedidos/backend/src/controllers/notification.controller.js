@@ -1,7 +1,11 @@
 import * as notificationService from "../services/notification.service.js";
+import { checkReminders } from "../services/expense.service.js";
 
 export const getMyNotifications = async (req, res, next) => {
   try {
+    if (req.user.role === "admin") {
+      await checkReminders();
+    }
     const notifications = await notificationService.getMyNotifications(
       req.user.id,
       req.query.read

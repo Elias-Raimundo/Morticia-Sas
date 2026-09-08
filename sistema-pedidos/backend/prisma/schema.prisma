@@ -34,6 +34,7 @@ model Product {
   createdAt DateTime    @default(now())
   stock     Int         @default(0)
   items     OrderItem[]
+  purchaseItems InvoiceItem[]
   categoryId Int?
   category  Category?   @relation(fields: [categoryId], references: [id])
   imageUrl  String?
@@ -81,12 +82,15 @@ model Notification {
   userId    Int
   message   String
   orderId   Int?
+  expenseId Int?
   read      Boolean  @default(false)
   createdAt DateTime @default(now())
   user      User     @relation(fields: [userId], references: [id])
+  expense   Expense? @relation(fields: [expenseId], references: [id])
 
   @@index([userId])
   @@index([read])
+  @@index([expenseId])
 }
 
 model BalanceMovement {
@@ -97,6 +101,139 @@ model BalanceMovement {
   amount      Float
   createdAt   DateTime @default(now())
   user        User     @relation(fields: [userId], references: [id])
+}
+
+// ============ Proveedores y facturas de compra ============
+
+model Provider {
+  id        Int                @id @default(autoincrement())
+  name      String
+  cuit      String?
+  phone     String?
+  email     String?
+  address   String?
+  active    Boolean            @default(true)
+  createdAt DateTime           @default(now())
+  invoices  Invoice[]
+  movements ProviderMovement[]
+
+  @@index([active])
+}
+
+// Ledger de deuda con el proveedor: se genera automáticamente al cargar una
+// factura (deuda) y al registrar un pago/cuota (reduce deuda), y también admite
+// ajustes manuales (notas de crédito, descuentos, recargos).
+model ProviderMovement {
+  id          Int      @id @default(autoincrement())
+  providerId  Int
+  invoiceId   Int?
+  type        String   // "invoice" | "payment" | "adjustment"
+  description String
+  amount      Float    // positivo = aumenta deuda, negativo = la reduce
+  createdAt   DateTime @default(now())
+  provider    Provider @relation(fields: [providerId], references: [id])
+  invoice     Invoice? @relation(fields: [invoiceId], references: [id])
+
+  @@index([providerId])
+  @@index([invoiceId])
+}
+
+model Invoice {
+  id          Int                  @id @default(autoincrement())
+  providerId  Int
+  number      String?
+  date        DateTime             @default(now())
+  total       Float
+  paymentType InvoicePaymentType
+  notes       String?
+  createdAt   DateTime             @default(now())
+  provider    Provider             @relation(fields: [providerId], references: [id])
+  items       InvoiceItem[]
+  installments InvoiceInstallment[]
+  movements   ProviderMovement[]
+
+  @@index([providerId])
+}
+
+model InvoiceItem {
+  id        Int     @id @default(autoincrement())
+  invoiceId Int
+  productId Int
+  quantity  Int
+  unitCost  Float
+  subtotal  Float
+  invoice   Invoice @relation(fields: [invoiceId], references: [id])
+  product   Product @relation(fields: [productId], references: [id])
+
+  @@index([invoiceId])
+  @@index([productId])
+}
+
+// Plan de cuotas fijo, solo cuando Invoice.paymentType = cuotas
+model InvoiceInstallment {
+  id        Int       @id @default(autoincrement())
+  invoiceId Int
+  number    Int
+  amount    Float
+  dueDate   DateTime
+  paid      Boolean   @default(false)
+  paidAt    DateTime?
+  invoice   Invoice   @relation(fields: [invoiceId], references: [id])
+
+  @@index([invoiceId])
+}
+
+enum InvoicePaymentType {
+  fiado
+  cuotas
+  completo
+}
+
+// ============ Gastos (IVA, honorarios, generales) ============
+
+model Expense {
+  id              Int            @id @default(autoincrement())
+  description     String
+  category        String
+  amount          Float
+  expenseDate     DateTime       @default(now())
+  dueDate         DateTime?
+  paid            Boolean        @default(false)
+  paidAt          DateTime?
+  reminderEnabled Boolean        @default(false)
+  createdAt       DateTime       @default(now())
+  notifications   Notification[]
+
+  @@index([dueDate])
+  @@index([paid])
+}
+
+// ============ Bienes de trabajo ============
+
+model Asset {
+  id          Int            @id @default(autoincrement())
+  name        String
+  description String?
+  location    String?
+  totalCost   Float?
+  active      Boolean        @default(true)
+  acquiredAt  DateTime       @default(now())
+  createdAt   DateTime       @default(now())
+  payments    AssetPayment[]
+
+  @@index([active])
+}
+
+model AssetPayment {
+  id      Int      @id @default(autoincrement())
+  assetId Int
+  amount  Float
+  method  String   // "efectivo" | "transferencia" | "tarjeta" | "cuotas" | etc (texto libre)
+  date    DateTime @default(now())
+  notes   String?
+  asset   Asset    @relation(fields: [assetId], references: [id])
+
+  @@index([assetId])
 }
 
 enum Role {
