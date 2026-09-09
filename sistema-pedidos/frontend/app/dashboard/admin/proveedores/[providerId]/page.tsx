@@ -40,6 +40,7 @@ type Movement = {
   type: string;
   description: string;
   amount: number;
+  method?: string | null;
   createdAt: string;
   invoiceId?: number | null;
 };
@@ -111,6 +112,11 @@ export default function ProviderDetailPage() {
 
   const [payingInvoiceId, setPayingInvoiceId] = useState<number | null>(null);
   const [payAmount, setPayAmount] = useState("");
+  const [payMethod, setPayMethod] = useState("efectivo");
+  const [payingInstallmentId, setPayingInstallmentId] = useState<number | null>(null);
+  const [installmentMethod, setInstallmentMethod] = useState("efectivo");
+
+  const PAYMENT_METHODS = ["efectivo", "transferencia", "tarjeta", "cheque", "cheque electrónico", "otro"];
 
   const load = async () => {
     setLoading(true);
@@ -262,10 +268,11 @@ export default function ProviderDetailPage() {
     }
   };
 
-  const payInstallment = async (installmentId: number) => {
+  const payInstallment = async (installmentId: number, method: string) => {
     try {
       const res = await apiFetch(`/api/installments/${installmentId}/pay`, {
         method: "PATCH",
+        body: JSON.stringify({ method }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
@@ -273,6 +280,7 @@ export default function ProviderDetailPage() {
         return;
       }
       toast.success("Cuota pagada");
+      setPayingInstallmentId(null);
       load();
     } catch (e) {
       console.error(e);
@@ -288,7 +296,7 @@ export default function ProviderDetailPage() {
     try {
       const res = await apiFetch(`/api/invoices/${invoiceId}/payments`, {
         method: "POST",
-        body: JSON.stringify({ amount }),
+        body: JSON.stringify({ amount, method: payMethod }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
@@ -701,7 +709,7 @@ export default function ProviderDetailPage() {
                 {inv.paymentType === "cuotas" && inv.installments.length > 0 && (
                   <div className="space-y-1 pt-1">
                     {inv.installments.map((inst) => (
-                      <div key={inst.id} className="flex items-center justify-between text-xs">
+                      <div key={inst.id} className="flex flex-wrap items-center justify-between gap-2 text-xs">
                         <span className="text-gray-600">
                           Cuota {inst.number} · vence {formatDate(inst.dueDate)} · {formatMoney(inst.amount)}
                         </span>
@@ -709,9 +717,35 @@ export default function ProviderDetailPage() {
                           <span className="rounded-full bg-green-100 px-2 py-0.5 font-medium text-green-800">
                             Pagada
                           </span>
+                        ) : payingInstallmentId === inst.id ? (
+                          <div className="flex items-center gap-2">
+                            <select
+                              value={installmentMethod}
+                              onChange={(e) => setInstallmentMethod(e.target.value)}
+                              className="rounded-lg border border-gray-300 px-2 py-1 text-xs text-gray-900"
+                            >
+                              {PAYMENT_METHODS.map((m) => (
+                                <option key={m} value={m}>
+                                  {m}
+                                </option>
+                              ))}
+                            </select>
+                            <button
+                              onClick={() => payInstallment(inst.id, installmentMethod)}
+                              className="rounded-lg bg-gray-900 px-2 py-1 text-white"
+                            >
+                              Confirmar
+                            </button>
+                            <button
+                              onClick={() => setPayingInstallmentId(null)}
+                              className="text-gray-500 hover:underline"
+                            >
+                              Cancelar
+                            </button>
+                          </div>
                         ) : (
                           <button
-                            onClick={() => payInstallment(inst.id)}
+                            onClick={() => setPayingInstallmentId(inst.id)}
                             className="rounded-lg border border-amber-300 px-2 py-1 text-amber-700 hover:bg-amber-50"
                           >
                             Marcar pagada
@@ -733,6 +767,17 @@ export default function ProviderDetailPage() {
                           onChange={(e) => setPayAmount(e.target.value)}
                           className="w-40 rounded-lg border border-gray-300 px-2 py-1 text-sm text-gray-900"
                         />
+                        <select
+                          value={payMethod}
+                          onChange={(e) => setPayMethod(e.target.value)}
+                          className="rounded-lg border border-gray-300 px-2 py-1 text-sm text-gray-900"
+                        >
+                          {PAYMENT_METHODS.map((m) => (
+                            <option key={m} value={m}>
+                              {m}
+                            </option>
+                          ))}
+                        </select>
                         <button
                           onClick={() => registerInvoicePayment(inv.id)}
                           className="rounded-lg bg-gray-900 px-3 py-1 text-sm text-white"
@@ -812,7 +857,10 @@ export default function ProviderDetailPage() {
               <div key={m.id} className="flex items-center justify-between gap-3 p-3 text-sm">
                 <div>
                   <div className="text-gray-900">{m.description}</div>
-                  <div className="text-xs text-gray-500">{formatDate(m.createdAt)}</div>
+                  <div className="text-xs text-gray-500">
+                    {formatDate(m.createdAt)}
+                    {m.method && ` · ${m.method}`}
+                  </div>
                 </div>
                 <span className={`font-semibold ${m.amount > 0 ? "text-red-600" : "text-green-600"}`}>
                   {m.amount > 0 ? "+" : ""}
@@ -826,4 +874,5 @@ export default function ProviderDetailPage() {
     </div>
   );
 }
+
 

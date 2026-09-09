@@ -16,6 +16,8 @@ type Expense = {
   reminderEnabled: boolean;
 };
 
+type ExpenseCategory = { id: number; name: string };
+
 const formatMoney = (n: number) =>
   new Intl.NumberFormat("es-AR", {
     style: "currency",
@@ -26,10 +28,9 @@ const formatMoney = (n: number) =>
 const formatDate = (d?: string | null) =>
   d ? new Date(d).toLocaleDateString("es-AR") : "-";
 
-const CATEGORIES = ["iva", "honorarios", "servicios", "impuestos", "otro"];
-
 export default function GastosPage() {
   const [expenses, setExpenses] = useState<Expense[]>([]);
+  const [categories, setCategories] = useState<ExpenseCategory[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
 
@@ -37,10 +38,14 @@ export default function GastosPage() {
   const [dateTo, setDateTo] = useState("");
   const [paidFilter, setPaidFilter] = useState<"" | "true" | "false">("");
 
+  const [showCategoryForm, setShowCategoryForm] = useState(false);
+  const [newCategoryName, setNewCategoryName] = useState("");
+  const [savingCategory, setSavingCategory] = useState(false);
+
   const [showForm, setShowForm] = useState(false);
   const [saving, setSaving] = useState(false);
   const [description, setDescription] = useState("");
-  const [category, setCategory] = useState("otro");
+  const [category, setCategory] = useState("");
   const [amount, setAmount] = useState("");
   const [expenseDate, setExpenseDate] = useState("");
   const [dueDate, setDueDate] = useState("");
@@ -74,14 +79,57 @@ export default function GastosPage() {
     }
   };
 
+  const loadCategories = async () => {
+    try {
+      const res = await apiFetch("/api/expense-categories");
+      const data = await res.json().catch(() => []);
+      const list = Array.isArray(data) ? data : [];
+      setCategories(list);
+      setCategory((prev) => prev || list[0]?.name || "");
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  useEffect(() => {
+    loadCategories();
+  }, []);
+
   useEffect(() => {
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dateFrom, dateTo, paidFilter]);
 
+  const createCategory = async () => {
+    const cleanName = newCategoryName.trim();
+    if (!cleanName) {
+      toast.error("Escribí un nombre para la categoría");
+      return;
+    }
+    setSavingCategory(true);
+    try {
+      const res = await apiFetch("/api/expense-categories", {
+        method: "POST",
+        body: JSON.stringify({ name: cleanName }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        toast.error(data?.error || "Error creando la categoría");
+        return;
+      }
+      setCategories((prev) => [...prev, data].sort((a, b) => a.name.localeCompare(b.name)));
+      setCategory(data.name);
+      setNewCategoryName("");
+      setShowCategoryForm(false);
+      toast.success("Categoría creada");
+    } finally {
+      setSavingCategory(false);
+    }
+  };
+
   const resetForm = () => {
     setDescription("");
-    setCategory("otro");
+    setCategory(categories[0]?.name || "");
     setAmount("");
     setExpenseDate("");
     setDueDate("");
@@ -226,17 +274,47 @@ export default function GastosPage() {
               onChange={(e) => setDescription(e.target.value)}
               className="rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 md:col-span-2"
             />
-            <select
-              value={category}
-              onChange={(e) => setCategory(e.target.value)}
-              className="rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900"
-            >
-              {CATEGORIES.map((c) => (
-                <option key={c} value={c}>
-                  {c}
-                </option>
-              ))}
-            </select>
+            <div>
+              <div className="flex gap-2">
+                <select
+                  value={category}
+                  onChange={(e) => setCategory(e.target.value)}
+                  className="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900"
+                >
+                  {categories.length === 0 && <option value="">Sin categorías todavía</option>}
+                  {categories.map((c) => (
+                    <option key={c.id} value={c.name}>
+                      {c.name}
+                    </option>
+                  ))}
+                </select>
+                <button
+                  type="button"
+                  onClick={() => setShowCategoryForm((v) => !v)}
+                  className="rounded-lg border border-amber-300 px-3 py-2 text-sm font-medium text-amber-700 hover:bg-amber-50"
+                >
+                  + nueva
+                </button>
+              </div>
+              {showCategoryForm && (
+                <div className="mt-2 flex gap-2">
+                  <input
+                    placeholder="Nombre de la categoría"
+                    value={newCategoryName}
+                    onChange={(e) => setNewCategoryName(e.target.value)}
+                    className="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900"
+                  />
+                  <button
+                    type="button"
+                    onClick={createCategory}
+                    disabled={savingCategory}
+                    className="rounded-lg bg-gray-900 px-3 py-2 text-sm font-semibold text-white hover:bg-gray-800 disabled:opacity-50"
+                  >
+                    {savingCategory ? "..." : "Guardar"}
+                  </button>
+                </div>
+              )}
+            </div>
             <input
               type="number"
               placeholder="Monto *"
@@ -333,9 +411,9 @@ export default function GastosPage() {
                         onChange={(ev) => setEditForm((f) => ({ ...f, category: ev.target.value }))}
                         className="rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900"
                       >
-                        {CATEGORIES.map((c) => (
-                          <option key={c} value={c}>
-                            {c}
+                        {categories.map((c) => (
+                          <option key={c.id} value={c.name}>
+                            {c.name}
                           </option>
                         ))}
                       </select>
@@ -454,3 +532,4 @@ export default function GastosPage() {
     </div>
   );
 }
+

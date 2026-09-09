@@ -12,11 +12,15 @@ type Payment = {
   notes?: string | null;
 };
 
+type Client = { id: number; name: string };
+
 type Asset = {
   id: number;
   name: string;
   description?: string | null;
   location?: string | null;
+  clientId?: number | null;
+  client?: Client | null;
   totalCost?: number | null;
   acquiredAt: string;
   payments: Payment[];
@@ -33,17 +37,19 @@ const formatMoney = (n: number) =>
 const formatDate = (d?: string | null) =>
   d ? new Date(d).toLocaleDateString("es-AR") : "-";
 
-const METHODS = ["efectivo", "transferencia", "tarjeta", "cuotas", "otro"];
+const METHODS = ["efectivo", "transferencia", "tarjeta", "cheque", "cheque electrónico", "cuotas", "otro"];
 
 export default function BienesPage() {
   const [items, setItems] = useState<Asset[]>([]);
+  const [clients, setClients] = useState<Client[]>([]);
   const [loading, setLoading] = useState(true);
 
   const [showForm, setShowForm] = useState(false);
   const [saving, setSaving] = useState(false);
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
-  const [location, setLocation] = useState("");
+  const [locationOption, setLocationOption] = useState(""); // "" = sin elegir, "other" = otra, o el id del cliente
+  const [customLocation, setCustomLocation] = useState("");
   const [totalCost, setTotalCost] = useState("");
   const [acquiredAt, setAcquiredAt] = useState("");
   const [firstPaymentAmount, setFirstPaymentAmount] = useState("");
@@ -57,7 +63,8 @@ export default function BienesPage() {
   const [editForm, setEditForm] = useState({
     name: "",
     description: "",
-    location: "",
+    locationOption: "",
+    customLocation: "",
     totalCost: "",
   });
   const [savingEdit, setSavingEdit] = useState(false);
@@ -65,9 +72,14 @@ export default function BienesPage() {
   const load = async () => {
     setLoading(true);
     try {
-      const res = await apiFetch("/api/assets");
-      const data = await res.json().catch(() => []);
+      const [assetsRes, clientsRes] = await Promise.all([
+        apiFetch("/api/assets"),
+        apiFetch("/api/balance/admin/clients"),
+      ]);
+      const data = await assetsRes.json().catch(() => []);
+      const clientsData = await clientsRes.json().catch(() => []);
       setItems(Array.isArray(data) ? data : []);
+      setClients(Array.isArray(clientsData) ? clientsData : []);
     } finally {
       setLoading(false);
     }
@@ -80,7 +92,8 @@ export default function BienesPage() {
   const resetForm = () => {
     setName("");
     setDescription("");
-    setLocation("");
+    setLocationOption("");
+    setCustomLocation("");
     setTotalCost("");
     setAcquiredAt("");
     setFirstPaymentAmount("");
@@ -99,7 +112,8 @@ export default function BienesPage() {
         body: JSON.stringify({
           name,
           description: description || undefined,
-          location: location || undefined,
+          clientId: locationOption && locationOption !== "other" ? Number(locationOption) : null,
+          location: locationOption === "other" ? customLocation || undefined : undefined,
           totalCost: totalCost ? Number(totalCost) : undefined,
           acquiredAt: acquiredAt || undefined,
           payments: firstPaymentAmount
@@ -151,7 +165,8 @@ export default function BienesPage() {
     setEditForm({
       name: a.name,
       description: a.description ?? "",
-      location: a.location ?? "",
+      locationOption: a.clientId ? String(a.clientId) : a.location ? "other" : "",
+      customLocation: a.clientId ? "" : a.location ?? "",
       totalCost: a.totalCost != null ? String(a.totalCost) : "",
     });
   };
@@ -168,7 +183,11 @@ export default function BienesPage() {
         body: JSON.stringify({
           name: editForm.name,
           description: editForm.description || undefined,
-          location: editForm.location || undefined,
+          clientId:
+            editForm.locationOption && editForm.locationOption !== "other"
+              ? Number(editForm.locationOption)
+              : null,
+          location: editForm.locationOption === "other" ? editForm.customLocation || undefined : undefined,
           totalCost: editForm.totalCost ? Number(editForm.totalCost) : undefined,
         }),
       });
@@ -200,6 +219,14 @@ export default function BienesPage() {
     }
   };
 
+  const totalCapital = items.reduce((acc, a) => acc + (a.totalCost ?? 0), 0);
+
+  const capitalPorUbicacion = items.reduce((acc, a) => {
+    const key = a.client?.name ?? a.location ?? "Sin ubicación";
+    acc[key] = (acc[key] ?? 0) + (a.totalCost ?? 0);
+    return acc;
+  }, {} as Record<string, number>);
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-amber-50 via-white to-white p-4 md:p-6 space-y-6">
       <div className="rounded-2xl border border-amber-200 bg-white shadow-sm overflow-hidden">
@@ -211,12 +238,17 @@ export default function BienesPage() {
               Herramientas, equipos, etc. — con su ubicación y cómo los fuiste pagando.
             </p>
           </div>
-          <button
-            onClick={() => setShowForm((v) => !v)}
-            className="rounded-xl bg-amber-500 px-4 py-2 text-sm font-semibold text-gray-950 hover:bg-amber-600"
-          >
-            {showForm ? "Cancelar" : "+ Nuevo bien"}
-          </button>
+          <div className="flex flex-col items-end gap-2">
+            <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 text-emerald-800 px-3 py-1 text-sm font-semibold">
+              Capital total: {formatMoney(totalCapital)}
+            </span>
+            <button
+              onClick={() => setShowForm((v) => !v)}
+              className="rounded-xl bg-amber-500 px-4 py-2 text-sm font-semibold text-gray-950 hover:bg-amber-600"
+            >
+              {showForm ? "Cancelar" : "+ Nuevo bien"}
+            </button>
+          </div>
         </div>
 
         {showForm && (
@@ -233,12 +265,29 @@ export default function BienesPage() {
               onChange={(e) => setDescription(e.target.value)}
               className="rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 md:col-span-2"
             />
-            <input
-              placeholder="Ubicación (dónde lo tenés)"
-              value={location}
-              onChange={(e) => setLocation(e.target.value)}
-              className="rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900"
-            />
+            <div>
+              <select
+                value={locationOption}
+                onChange={(e) => setLocationOption(e.target.value)}
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900"
+              >
+                <option value="">Ubicación (elegí un cliente)</option>
+                {clients.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                  </option>
+                ))}
+                <option value="other">Otra ubicación...</option>
+              </select>
+              {locationOption === "other" && (
+                <input
+                  placeholder="Escribí la ubicación"
+                  value={customLocation}
+                  onChange={(e) => setCustomLocation(e.target.value)}
+                  className="mt-2 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900"
+                />
+              )}
+            </div>
             <input
               type="number"
               placeholder="Costo total"
@@ -294,6 +343,22 @@ export default function BienesPage() {
         )}
       </div>
 
+      {Object.keys(capitalPorUbicacion).length > 0 && (
+        <div className="rounded-2xl border border-gray-200 bg-white shadow-sm overflow-hidden">
+          <div className="p-4 md:p-5 border-b">
+            <h2 className="font-semibold text-gray-900">Capital por ubicación</h2>
+          </div>
+          <div className="divide-y">
+            {Object.entries(capitalPorUbicacion).map(([loc, total]) => (
+              <div key={loc} className="flex items-center justify-between p-3 text-sm">
+                <span className="text-gray-700">{loc}</span>
+                <span className="font-semibold text-gray-900">{formatMoney(total)}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       <div className="rounded-2xl border border-gray-200 bg-white shadow-sm overflow-hidden">
         {loading ? (
           <div className="p-6 text-gray-600">Cargando...</div>
@@ -320,12 +385,29 @@ export default function BienesPage() {
                         onChange={(ev) => setEditForm((f) => ({ ...f, description: ev.target.value }))}
                         className="rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 md:col-span-2"
                       />
-                      <input
-                        placeholder="Ubicación"
-                        value={editForm.location}
-                        onChange={(ev) => setEditForm((f) => ({ ...f, location: ev.target.value }))}
-                        className="rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900"
-                      />
+                      <div>
+                        <select
+                          value={editForm.locationOption}
+                          onChange={(ev) => setEditForm((f) => ({ ...f, locationOption: ev.target.value }))}
+                          className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900"
+                        >
+                          <option value="">Ubicación (elegí un cliente)</option>
+                          {clients.map((c) => (
+                            <option key={c.id} value={c.id}>
+                              {c.name}
+                            </option>
+                          ))}
+                          <option value="other">Otra ubicación...</option>
+                        </select>
+                        {editForm.locationOption === "other" && (
+                          <input
+                            placeholder="Escribí la ubicación"
+                            value={editForm.customLocation}
+                            onChange={(ev) => setEditForm((f) => ({ ...f, customLocation: ev.target.value }))}
+                            className="mt-2 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900"
+                          />
+                        )}
+                      </div>
                       <input
                         type="number"
                         placeholder="Costo total"
@@ -362,7 +444,7 @@ export default function BienesPage() {
                         <div className="text-sm text-gray-500">{a.description}</div>
                       )}
                       <div className="mt-1 text-xs text-gray-500">
-                        {a.location && `📍 ${a.location} · `}
+                        {(a.client?.name || a.location) && `📍 ${a.client?.name ?? a.location} · `}
                         Adquirido: {formatDate(a.acquiredAt)}
                       </div>
                     </div>
@@ -397,7 +479,7 @@ export default function BienesPage() {
                   )}
 
                   <div className="flex flex-wrap items-center gap-2 pt-1">
-                    {payingAssetId === a.id ? (
+                    {a.totalCost && pending <= 0 ? null : payingAssetId === a.id ? (
                       <>
                         <input
                           type="number"
