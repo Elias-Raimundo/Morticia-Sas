@@ -8,6 +8,7 @@ import {
   installmentIdParamSchema,
   createInvoiceSchema,
   registerPaymentSchema,
+  payInstallmentSchema,
 } from "../validators/invoice.validator.js";
 
 const router = express.Router();
@@ -46,6 +47,7 @@ router.post(
 router.patch(
   "/installments/:installmentId/pay",
   validate(installmentIdParamSchema, "params"),
+  validate(payInstallmentSchema),
   invoiceController.payInstallment
 );
 

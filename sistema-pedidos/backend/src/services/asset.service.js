@@ -5,7 +5,7 @@ export const listAssets = async () => {
   const assets = await prisma.asset.findMany({
     where: { active: true },
     orderBy: { acquiredAt: "desc" },
-    include: { payments: true },
+    include: { payments: true, client: { select: { id: true, name: true } } },
   });
 
   return assets.map((a) => ({
@@ -25,11 +25,12 @@ export const getAssetById = async (id) => {
 };
 
 export const createAsset = async (data) => {
-  const { payments, ...assetData } = data;
+  const { payments, clientId, ...assetData } = data;
 
   return prisma.asset.create({
     data: {
       ...assetData,
+      clientId: clientId ?? null,
       payments: payments?.length
         ? {
             create: payments.map((p) => ({
@@ -41,7 +42,7 @@ export const createAsset = async (data) => {
           }
         : undefined,
     },
-    include: { payments: true },
+    include: { payments: true, client: { select: { id: true, name: true } } },
   });
 };
 

@@ -37,4 +37,9 @@ export const createInvoiceSchema = z
 export const registerPaymentSchema = z.object({
   amount: z.number().positive("El monto debe ser mayor a 0"),
   description: z.string().optional(),
+  method: z.string().optional(),
+});
+
+export const payInstallmentSchema = z.object({
+  method: z.string().optional(),
 });

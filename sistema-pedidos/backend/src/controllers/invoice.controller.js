@@ -32,7 +32,7 @@ export const createInvoice = async (req, res, next) => {
 
 export const payInstallment = async (req, res, next) => {
   try {
-    const movement = await invoiceService.payInstallment(req.params.installmentId);
+    const movement = await invoiceService.payInstallment(req.params.installmentId, req.body);
     res.json(movement);
   } catch (error) {
     next(error);

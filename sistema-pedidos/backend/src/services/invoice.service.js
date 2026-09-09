@@ -131,7 +131,7 @@ export const createInvoice = async (data) => {
   });
 };
 
-export const payInstallment = async (installmentId) => {
+export const payInstallment = async (installmentId, { method } = {}) => {
   const id = Number(installmentId);
   const installment = await prisma.invoiceInstallment.findUnique({
     where: { id },
@@ -155,13 +155,14 @@ export const payInstallment = async (installmentId) => {
           installment.invoice.number ? "N° " + installment.invoice.number : "#" + installment.invoiceId
         }`,
         amount: -installment.amount,
+        method: method || undefined,
       },
     });
   });
 };
 
 // Pago libre contra una factura (fiado, o pago parcial/adicional de cualquiera)
-export const registerInvoicePayment = async (invoiceId, { amount, description }) => {
+export const registerInvoicePayment = async (invoiceId, { amount, description, method }) => {
   const id = Number(invoiceId);
   const invoice = await prisma.invoice.findUnique({ where: { id } });
   if (!invoice) throw new AppError("Factura no encontrada", 404);
@@ -174,6 +175,7 @@ export const registerInvoicePayment = async (invoiceId, { amount, description })
       type: "payment",
       description: description || "Pago registrado",
       amount: -amount,
+      method: method || undefined,
     },
   });
 };

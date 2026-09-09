@@ -22,6 +22,7 @@ model User {
   balanceMovements BalanceMovement[]
   notifications    Notification[]
   orders           Order[]
+  assets           Asset[]
 }
 
 model Product {
@@ -130,6 +131,7 @@ model ProviderMovement {
   type        String   // "invoice" | "payment" | "adjustment"
   description String
   amount      Float    // positivo = aumenta deuda, negativo = la reduce
+  method      String?  // "efectivo" | "transferencia" | "tarjeta" | "cheque" | "cheque_electronico" | "otro"
   createdAt   DateTime @default(now())
   provider    Provider @relation(fields: [providerId], references: [id])
   invoice     Invoice? @relation(fields: [invoiceId], references: [id])
@@ -208,6 +210,11 @@ model Expense {
   @@index([paid])
 }
 
+model ExpenseCategory {
+  id   Int    @id @default(autoincrement())
+  name String @unique
+}
+
 // ============ Bienes de trabajo ============
 
 model Asset {
@@ -215,6 +222,8 @@ model Asset {
   name        String
   description String?
   location    String?
+  clientId    Int?
+  client      User?          @relation(fields: [clientId], references: [id], onDelete: SetNull)
   totalCost   Float?
   active      Boolean        @default(true)
   acquiredAt  DateTime       @default(now())
@@ -222,6 +231,7 @@ model Asset {
   payments    AssetPayment[]
 
   @@index([active])
+  @@index([clientId])
 }
 
 model AssetPayment {

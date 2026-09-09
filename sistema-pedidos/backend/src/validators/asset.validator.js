@@ -15,6 +15,7 @@ export const createAssetSchema = z.object({
   name: z.string().min(1, "El nombre es obligatorio"),
   description: z.string().optional(),
   location: z.string().optional(),
+  clientId: z.number().int().positive().nullable().optional(),
   totalCost: z.number().nonnegative().optional(),
   acquiredAt: z.string().optional(),
   payments: z.array(assetPaymentSchema).optional(),

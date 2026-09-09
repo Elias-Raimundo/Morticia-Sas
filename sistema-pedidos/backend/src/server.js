@@ -22,6 +22,7 @@ import providerRoutes from "./routes/provider.routes.js";
 import invoiceRoutes from "./routes/invoice.routes.js";
 import expenseRoutes from "./routes/expense.routes.js";
 import assetRoutes from "./routes/asset.routes.js";
+import expenseCategoryRoutes from "./routes/expenseCategory.routes.js";
 
 const app = express();
 app.set("trust proxy", 1); 
@@ -82,6 +83,7 @@ app.use("/api/providers", providerRoutes);
 app.use("/api", invoiceRoutes);
 app.use("/api/expenses", expenseRoutes);
 app.use("/api/assets", assetRoutes);
+app.use("/api/expense-categories", expenseCategoryRoutes);
 
 
 app.get("/api/user/me", authMiddleware, async (req, res) => {
