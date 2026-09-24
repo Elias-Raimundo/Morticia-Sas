@@ -82,15 +82,31 @@ export const listExpenses = async (filters = {}) => {
   return { expenses, total };
 };
 
+// El frontend manda fechas "solo fecha" (ej: "2027-01-28") desde inputs <input type="date">.
+// Prisma exige un DateTime ISO-8601 completo (con hora), así que esos strings crudos
+// hacen fallar el create/update con "premature end of input. Expected ISO-8601 DateTime.".
+// Convertirlos a un objeto Date real antes de mandarlos a Prisma evita ese error.
+const toDateOrUndefined = (value) => {
+  if (value === undefined || value === null || value === "") return undefined;
+  return value instanceof Date ? value : new Date(value);
+};
+
+const normalizeExpenseDates = (data) => {
+  const normalized = { ...data };
+  if ("expenseDate" in normalized) normalized.expenseDate = toDateOrUndefined(normalized.expenseDate);
+  if ("dueDate" in normalized) normalized.dueDate = toDateOrUndefined(normalized.dueDate);
+  return normalized;
+};
+
 export const createExpense = async (data) => {
-  return prisma.expense.create({ data });
+  return prisma.expense.create({ data: normalizeExpenseDates(data) });
 };
 
 export const updateExpense = async (id, data) => {
   const expenseId = Number(id);
   const existing = await prisma.expense.findUnique({ where: { id: expenseId } });
   if (!existing) throw new AppError("Gasto no encontrado", 404);
-  return prisma.expense.update({ where: { id: expenseId }, data });
+  return prisma.expense.update({ where: { id: expenseId }, data: normalizeExpenseDates(data) });
 };
 
 export const registerPayment = async (id, paidAt) => {
