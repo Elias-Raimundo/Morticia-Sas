@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { apiFetch } from "@/lib/api";
 import { toast } from "sonner";
 
@@ -93,6 +93,12 @@ export default function VentasPage() {
   const [comments, setComments] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [cancelingId, setCancelingId] = useState<number | null>(null);
+  const [showCartPanel, setShowCartPanel] = useState(false);
+  const paymentSectionRef = useRef<HTMLDivElement>(null);
+  const goToPayment = () => {
+    setShowCartPanel(false);
+    paymentSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
 
   const load = async () => {
     try {
@@ -173,7 +179,11 @@ export default function VentasPage() {
   };
 
   const removeFromCart = (productId: number) =>
-    setCart((prev) => prev.filter((l) => l.productId !== productId));
+    setCart((prev) => {
+      const next = prev.filter((l) => l.productId !== productId);
+      if (next.length === 0) setShowCartPanel(false);
+      return next;
+    });
 
   // ---------- remito ----------
   const fetchRemito = async (saleId: number) => {
@@ -219,6 +229,7 @@ export default function VentasPage() {
     setCart([]);
     setPaymentMethod("");
     setComments("");
+    setShowCartPanel(false);
   };
 
   const submitSale = async () => {
@@ -300,7 +311,7 @@ export default function VentasPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-amber-50 via-white to-white p-4 md:p-6 space-y-6">
+    <div className="min-h-screen bg-gradient-to-b from-amber-50 via-white to-white p-4 md:p-6 space-y-6 pb-28">
       <div className="rounded-2xl border border-amber-200 bg-white shadow-sm overflow-hidden">
         <div className="h-2 bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-500" />
         <div className="p-5 md:p-6">
@@ -519,7 +530,7 @@ export default function VentasPage() {
 
       {/* 3. Cobro */}
       <div className="rounded-2xl border border-gray-200 bg-white shadow-sm p-5 md:p-6 space-y-4">
-        <h2 className="text-lg font-bold text-gray-900">3. Cobro y remito</h2>
+        <h2 ref={paymentSectionRef} className="scroll-mt-20 text-lg font-bold text-gray-900">3. Cobro y remito</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           <select
             className={inputClass}
@@ -561,6 +572,80 @@ export default function VentasPage() {
           </button>
         </div>
       </div>
+
+      {/* Barra fija: total y acceso al carrito visibles todo el tiempo, sin scrollear */}
+      {cart.length > 0 && (
+        <>
+          {showCartPanel && (
+            <div
+              className="fixed inset-x-0 bottom-[64px] z-40 mx-auto max-h-[55vh] w-full max-w-3xl overflow-y-auto rounded-t-2xl border border-b-0 border-gray-200 bg-white p-4 shadow-2xl md:bottom-[68px]"
+              role="dialog"
+              aria-label="Productos de la venta"
+            >
+              <div className="mb-2 flex items-center justify-between">
+                <span className="text-sm font-semibold text-gray-900">Productos de la venta</span>
+                <button onClick={() => setShowCartPanel(false)} className="text-sm text-gray-500 hover:text-gray-700">
+                  Cerrar ✕
+                </button>
+              </div>
+              <ul className="divide-y">
+                {cart.map((l) => {
+                  const p = productById(l.productId);
+                  if (!p) return null;
+                  return (
+                    <li key={l.productId} className="flex items-center justify-between gap-2 py-2 text-sm">
+                      <span className="min-w-0 flex-1 truncate text-gray-900">
+                        {l.quantity} × {p.name}
+                      </span>
+                      <span className="shrink-0 font-semibold text-gray-900">{formatMoney(p.price * l.quantity)}</span>
+                      <button
+                        onClick={() => removeFromCart(l.productId)}
+                        className="shrink-0 rounded-lg border border-red-200 px-2 py-1 text-xs text-red-600 hover:bg-red-50"
+                      >
+                        Quitar
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+              {discountPct > 0 && (
+                <p className="mt-2 text-xs text-gray-500">
+                  Subtotal {formatMoney(subtotal)} · Descuento {discountPct}%: −{formatMoney(discountAmount)}
+                </p>
+              )}
+              <button
+                onClick={goToPayment}
+                className="mt-3 w-full rounded-xl bg-amber-500 px-4 py-2 text-sm font-semibold text-gray-950 hover:bg-amber-600"
+              >
+                Ir a cobrar
+              </button>
+            </div>
+          )}
+
+          <div className="fixed inset-x-0 bottom-0 z-40 border-t border-gray-200 bg-white/95 backdrop-blur shadow-[0_-4px_12px_rgba(0,0,0,0.06)]">
+            <div className="mx-auto flex max-w-3xl items-center justify-between gap-3 px-4 py-3">
+              <button
+                onClick={() => setShowCartPanel((v) => !v)}
+                className="flex min-w-0 flex-1 items-center gap-2 text-left"
+              >
+                <span className="text-xl">🛒</span>
+                <span className="min-w-0 truncate">
+                  <span className="block text-xs text-gray-500">
+                    {cart.length} {cart.length === 1 ? "producto" : "productos"} · {showCartPanel ? "ocultar" : "ver detalle"}
+                  </span>
+                  <span className="block text-base font-bold text-gray-900">{formatMoney(total)}</span>
+                </span>
+              </button>
+              <button
+                onClick={goToPayment}
+                className="shrink-0 rounded-xl bg-amber-500 px-4 py-2 text-sm font-semibold text-gray-950 hover:bg-amber-600"
+              >
+                Ir a cobrar
+              </button>
+            </div>
+          </div>
+        </>
+      )}
 
       {/* Últimas ventas */}
       <div className="rounded-2xl border border-gray-200 bg-white shadow-sm overflow-hidden">
