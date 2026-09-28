@@ -9,9 +9,6 @@ export const register = async (data) => {
 
  const { name, lastName, email, password, dniCuil, address, phone } = data;
 
-  console.log("REGISTER BODY:", data);
-  console.log("EMAIL:", email);
-  console.log("DNI:", dniCuil);
 
   if (!name || !lastName || !email || !password || !dniCuil || !address || !phone) {
     throw new Error("FALTAN_DATOS");
@@ -66,6 +63,14 @@ export const login = async (data) => {
   const validPassword = await comparePassword(data.password, user.password);
   if (!validPassword) throw new Error("Credenciales inválidas");
 
+  if (!user.active) {
+    throw new Error("Esta cuenta fue eliminada. Contactá a la administración.");
+  }
+
+  if (user.hasAccess === false) {
+    throw new Error("Esta cuenta no tiene acceso al sistema.");
+  }
+
   const token = generateToken(user);
   const { password: _, ...safeUser } = user;
 
@@ -90,6 +95,10 @@ export const resetPasswordSimple = async (data) => {
 
   if (!user) {
     throw new Error("El email no está registrado");
+  }
+
+  if (user.hasAccess === false) {
+    throw new Error("Esta cuenta no tiene acceso al sistema.");
   }
 
   const hashedPassword = await hashPassword(newPassword);

@@ -30,7 +30,17 @@ export const updateExpenseCategory = async (id, name) => {
   });
   if (duplicated) throw new AppError("Ya existe una categoría con ese nombre", 400);
 
-  return prisma.expenseCategory.update({ where: { id: categoryId }, data: { name: cleanName } });
+  // El gasto guarda la categoría como texto, así que al renombrar hay que
+  // actualizar también los gastos que la usaban para que no queden huérfanos.
+  return prisma.$transaction(async (tx) => {
+    if (exists.name !== cleanName) {
+      await tx.expense.updateMany({
+        where: { category: exists.name },
+        data: { category: cleanName },
+      });
+    }
+    return tx.expenseCategory.update({ where: { id: categoryId }, data: { name: cleanName } });
+  });
 };
 
 export const deleteExpenseCategory = async (id) => {
@@ -39,6 +49,14 @@ export const deleteExpenseCategory = async (id) => {
 
   const exists = await prisma.expenseCategory.findUnique({ where: { id: categoryId } });
   if (!exists) throw new AppError("Categoría no encontrada", 404);
+
+  const inUse = await prisma.expense.count({ where: { category: exists.name } });
+  if (inUse > 0) {
+    throw new AppError(
+      `No se puede eliminar: hay ${inUse} gasto${inUse === 1 ? "" : "s"} con la categoría "${exists.name}". Cambiales la categoría primero.`,
+      400
+    );
+  }
 
   await prisma.expenseCategory.delete({ where: { id: categoryId } });
   return { message: "Categoría eliminada" };

@@ -14,7 +14,9 @@ const assetPaymentSchema = z.object({
 export const createAssetSchema = z.object({
   name: z.string().min(1, "El nombre es obligatorio"),
   description: z.string().optional(),
-  location: z.string().optional(),
+  location: z.string().nullable().optional(),
+  category: z.string().nullable().optional(),
+  installmentsCount: z.number().int().positive("La cantidad de cuotas debe ser mayor a 0").nullable().optional(),
   clientId: z.number().int().positive().nullable().optional(),
   totalCost: z.number().nonnegative().optional(),
   acquiredAt: z.string().optional(),

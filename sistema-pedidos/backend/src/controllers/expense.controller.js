@@ -47,3 +47,24 @@ export const deleteExpense = async (req, res, next) => {
     next(error);
   }
 };
+
+export const payInstallment = async (req, res, next) => {
+  try {
+    const installment = await expenseService.payInstallment(
+      req.params.installmentId,
+      req.body?.paidAt
+    );
+    res.json(installment);
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getMetrics = async (req, res, next) => {
+  try {
+    const metrics = await expenseService.getMetrics(req.query.year);
+    res.json(metrics);
+  } catch (error) {
+    next(error);
+  }
+};

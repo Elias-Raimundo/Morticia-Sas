@@ -14,6 +14,10 @@ model User {
   role             Role
   createdAt        DateTime          @default(now())
   active           Boolean           @default(true)
+  receiveOrderEmails Boolean         @default(true)
+  hasAccess        Boolean           @default(true)   // false = cliente de venta al público, sin login
+  legalName        String?                            // razón social
+  contactEmail     String?                            // mail de contacto (los sin acceso no tienen email real)
   discount         Float             @default(0)
   address          String
   dniCuil          String            @unique
@@ -60,11 +64,14 @@ model Order {
   createdAt    DateTime    @default(now())
   updatedAt    DateTime    @updatedAt
   confirmedAt  DateTime?
+  isCounterSale Boolean    @default(false)  // venta al público (mostrador), con remito
+  paymentMethod String?                   // forma de cobro en el momento; null = a cuenta
   user         User        @relation(fields: [userId], references: [id])
   items        OrderItem[]
 
   @@index([userId])
   @@index([status])
+  @@index([isCounterSale])
 }
 
 model OrderItem {
@@ -79,19 +86,22 @@ model OrderItem {
 }
 
 model Notification {
-  id        Int      @id @default(autoincrement())
-  userId    Int
-  message   String
-  orderId   Int?
-  expenseId Int?
-  read      Boolean  @default(false)
-  createdAt DateTime @default(now())
-  user      User     @relation(fields: [userId], references: [id])
-  expense   Expense? @relation(fields: [expenseId], references: [id])
+  id            Int                 @id @default(autoincrement())
+  userId        Int
+  message       String
+  orderId       Int?
+  expenseId     Int?
+  installmentId Int?
+  read          Boolean             @default(false)
+  createdAt     DateTime            @default(now())
+  user          User                @relation(fields: [userId], references: [id])
+  expense       Expense?            @relation(fields: [expenseId], references: [id])
+  installment   ExpenseInstallment? @relation(fields: [installmentId], references: [id])
 
   @@index([userId])
   @@index([read])
   @@index([expenseId])
+  @@index([installmentId])
 }
 
 model BalanceMovement {
@@ -194,18 +204,39 @@ enum InvoicePaymentType {
 // ============ Gastos (IVA, honorarios, generales) ============
 
 model Expense {
-  id              Int            @id @default(autoincrement())
+  id              Int                  @id @default(autoincrement())
   description     String
   category        String
   amount          Float
-  expenseDate     DateTime       @default(now())
+  expenseDate     DateTime             @default(now())
   dueDate         DateTime?
-  paid            Boolean        @default(false)
+  paid            Boolean              @default(false)
   paidAt          DateTime?
-  reminderEnabled Boolean        @default(false)
-  createdAt       DateTime       @default(now())
+  reminderEnabled Boolean              @default(false)
+  isInstallment   Boolean              @default(false)
+  createdAt       DateTime             @default(now())
   notifications   Notification[]
+  installments    ExpenseInstallment[]
 
+  @@index([dueDate])
+  @@index([paid])
+}
+
+// Cuotas de un gasto pagado en plan de cuotas (ej: un préstamo).
+// Mismo patrón que InvoiceInstallment.
+model ExpenseInstallment {
+  id            Int            @id @default(autoincrement())
+  expenseId     Int
+  expense       Expense        @relation(fields: [expenseId], references: [id], onDelete: Cascade)
+  number        Int
+  amount        Float
+  dueDate       DateTime
+  paid          Boolean        @default(false)
+  paidAt        DateTime?
+  createdAt     DateTime       @default(now())
+  notifications Notification[]
+
+  @@index([expenseId])
   @@index([dueDate])
   @@index([paid])
 }
@@ -222,9 +253,11 @@ model Asset {
   name        String
   description String?
   location    String?
+  category    String?
   clientId    Int?
   client      User?          @relation(fields: [clientId], references: [id], onDelete: SetNull)
   totalCost   Float?
+  installmentsCount Int?     // cantidad de cuotas, si el bien se pagó en cuotas
   active      Boolean        @default(true)
   acquiredAt  DateTime       @default(now())
   createdAt   DateTime       @default(now())
@@ -232,6 +265,7 @@ model Asset {
 
   @@index([active])
   @@index([clientId])
+  @@index([category])
 }
 
 model AssetPayment {

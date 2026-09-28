@@ -23,6 +23,10 @@ import invoiceRoutes from "./routes/invoice.routes.js";
 import expenseRoutes from "./routes/expense.routes.js";
 import assetRoutes from "./routes/asset.routes.js";
 import expenseCategoryRoutes from "./routes/expenseCategory.routes.js";
+import adminUserRoutes from "./routes/adminUser.routes.js";
+import accountRoutes from "./routes/account.routes.js";
+import saleRoutes from "./routes/sale.routes.js";
+import catalogRoutes from "./routes/catalog.routes.js";
 
 const app = express();
 app.set("trust proxy", 1); 
@@ -84,6 +88,10 @@ app.use("/api", invoiceRoutes);
 app.use("/api/expenses", expenseRoutes);
 app.use("/api/assets", assetRoutes);
 app.use("/api/expense-categories", expenseCategoryRoutes);
+app.use("/api/admins", adminUserRoutes);
+app.use("/api/accounts", accountRoutes);
+app.use("/api/sales", saleRoutes);
+app.use("/api/catalog", catalogRoutes);
 
 
 app.get("/api/user/me", authMiddleware, async (req, res) => {

@@ -1,5 +1,6 @@
 import prisma from "../prisma.js";
 import { AppError } from "../utils/AppError.js";
+import { isPlaceholderEmail } from "../utils/customer.js";
 
 const buildDateWhere = (dateFrom, dateTo) => {
   if (!dateFrom && !dateTo) return {};
@@ -58,7 +59,7 @@ export const getUserBalanceAdmin = async (userId, dateFrom, dateTo) => {
   const balance = movements.reduce((acc, m) => acc + Number(m.amount), 0);
 
   return {
-    user,
+    user: { ...user, email: isPlaceholderEmail(user.email) ? null : user.email },
     balance,
     movements,
   };
@@ -74,6 +75,10 @@ export const getAllClientsBalances = async () => {
       id: true,
       name: true,
       email: true,
+      hasAccess: true,
+      discount: true,
+      legalName: true,
+      contactEmail: true,
       balanceMovements: {
         select: {
           amount: true,
@@ -94,7 +99,12 @@ export const getAllClientsBalances = async () => {
     return {
       id: user.id,
       name: user.name,
-      email: user.email,
+      // los clientes sin acceso tienen un email de relleno: no se muestra
+      email: isPlaceholderEmail(user.email) ? null : user.email,
+      hasAccess: user.hasAccess,
+      discount: user.discount,
+      legalName: user.legalName,
+      contactEmail: user.contactEmail,
       balance,
     };
   });

@@ -2,6 +2,15 @@ import prisma from "../prisma.js";
 import { AppError } from "../utils/AppError.js";
 import { buildOrderPdf } from "../utils/orderPdf.js";
 import { sendOrderEmail } from "../utils/mailer.js";
+import { isPlaceholderEmail, customerTaxId } from "../utils/customer.js";
+
+// Los clientes de venta al público tienen email y CUIT de relleno: no se exponen.
+const maskCustomer = (user) =>
+  user && {
+    ...user,
+    email: isPlaceholderEmail(user.email) ? null : user.email,
+    ...("dniCuil" in user ? { dniCuil: customerTaxId(user.dniCuil) } : {}),
+  };
 
 export const createDraftOrder = async (userId) => {
   return await prisma.order.create({
@@ -166,7 +175,7 @@ export const getAllOrders = async (status) => {
     whereClause.status = status;
   }
 
-  return prisma.order.findMany({
+  const orders = await prisma.order.findMany({
     where: whereClause,
     include: {
       user: {
@@ -186,6 +195,8 @@ export const getAllOrders = async (status) => {
       createdAt: "desc",
     },
   });
+
+  return orders.map((o) => ({ ...o, user: maskCustomer(o.user) }));
 };
 
 export const getOrCreateMyDraft = async (userId) => {
@@ -298,7 +309,7 @@ export const sendOrder = async (orderId, userId) => {
 
     const admins = await tx.user.findMany({
       where: { role: "admin", active: true },
-      select: { id: true, email: true, name: true },
+      select: { id: true, email: true, name: true, receiveOrderEmails: true },
     });
 
     for (const admin of admins) {
@@ -331,7 +342,12 @@ export const sendOrder = async (orderId, userId) => {
     try {
       const pdfBuffer = await buildOrderPdf(orderToEmail);
 
-      const adminEmails = adminsToEmail.map((a) => a.email).filter(Boolean);
+      // las notificaciones (campanita) le llegan a todos los admins; el mail con el
+      // PDF solo a los que no lo desactivaron
+      const adminEmails = adminsToEmail
+        .filter((a) => a.receiveOrderEmails)
+        .map((a) => a.email)
+        .filter(Boolean);
 
       if (adminEmails.length > 0) {
         await sendOrderEmail({
@@ -375,13 +391,17 @@ export const cancelOrder = async (orderId) => {
             product: true
           },
         },
+        user: { select: { hasAccess: true } },
       },
     });
 
     if (!order) throw new AppError("Orden no encontrada", 404);
 
-
-    if (order.status !== "confirmed") {
+    // Un pedido común se cancela mientras está confirmado. Una venta al público ya nace
+    // entregada, así que también se puede anular estando entregada.
+    const canCancel =
+      order.status === "confirmed" || (order.status === "delivered" && order.isCounterSale);
+    if (!canCancel) {
         throw new AppError("Estado inválido para cancelar", 400);
     }
 
@@ -411,14 +431,29 @@ export const cancelOrder = async (orderId) => {
       },
     });
 
-    // Notificar al cliente
-    await tx.notification.create({
-      data: {
-        userId: order.userId,
-        message: `Tu orden #${order.id} fue cancelada`,
-        orderId: order.id,
-      },
-    });
+    // Una venta al público cobrada en el momento: se devuelve también ese cobro, para que
+    // el saldo del cliente quede en cero (venta -total, cobro +total, anulación -total).
+    if (order.isCounterSale && order.paymentMethod && Number(order.total) > 0) {
+      await tx.balanceMovement.create({
+        data: {
+          userId: order.userId,
+          type: "cancellation",
+          description: `Devolución del cobro - venta #${order.id} anulada`,
+          amount: Number(order.total),
+        },
+      });
+    }
+
+    // Notificar al cliente (los clientes sin acceso no tienen a dónde recibirla)
+    if (order.user?.hasAccess !== false) {
+      await tx.notification.create({
+        data: {
+          userId: order.userId,
+          message: `Tu orden #${order.id} fue cancelada`,
+          orderId: order.id,
+        },
+      });
+    }
 
     return order;
   });
@@ -490,7 +525,7 @@ export const getOrderByIdForAdmin = async (orderId) => {
   });
 
   if (!order) throw new AppError("Orden no encontrada", 404);
-  return order;
+  return { ...order, user: maskCustomer(order.user) };
 };
 
 // (opcional) para cliente: solo si es suya
@@ -528,7 +563,7 @@ export const getOrderPdfForAdmin = async (orderId) => {
   const order = await prisma.order.findUnique({
     where: { id },
     include: {
-      user: { select: { id: true, name: true, email: true, phone: true, address: true, dniCuil: true, active: true } },
+      user: { select: { id: true, name: true, email: true, contactEmail: true, phone: true, address: true, dniCuil: true, active: true } },
       items: { include: { product: true } },
     },
   });
@@ -545,7 +580,7 @@ export const getOrderPdfForClient = async (orderId, userId) => {
   const order = await prisma.order.findUnique({
     where: { id },
     include: {
-      user: { select: { id: true, name: true, email: true, phone: true, address: true, dniCuil: true, active: true } },
+      user: { select: { id: true, name: true, email: true, contactEmail: true, phone: true, address: true, dniCuil: true, active: true } },
       items: { include: { product: true } },
     },
   });

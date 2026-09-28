@@ -1,5 +1,6 @@
 import prisma from "../prisma.js";
 import { AppError } from "../utils/AppError.js";
+import { toDateOrUndefined, todayArgentina } from "../utils/dates.js";
 
 export const listAssets = async () => {
   const assets = await prisma.asset.findMany({
@@ -30,13 +31,14 @@ export const createAsset = async (data) => {
   return prisma.asset.create({
     data: {
       ...assetData,
+      acquiredAt: toDateOrUndefined(assetData.acquiredAt) ?? todayArgentina(),
       clientId: clientId ?? null,
       payments: payments?.length
         ? {
             create: payments.map((p) => ({
               amount: p.amount,
               method: p.method,
-              date: p.date ? new Date(p.date) : undefined,
+              date: toDateOrUndefined(p.date),
               notes: p.notes,
             })),
           }
@@ -50,7 +52,9 @@ export const updateAsset = async (id, data) => {
   const assetId = Number(id);
   const existing = await prisma.asset.findUnique({ where: { id: assetId } });
   if (!existing) throw new AppError("Bien no encontrado", 404);
-  return prisma.asset.update({ where: { id: assetId }, data });
+  const updateData = { ...data };
+  if ("acquiredAt" in updateData) updateData.acquiredAt = toDateOrUndefined(updateData.acquiredAt);
+  return prisma.asset.update({ where: { id: assetId }, data: updateData });
 };
 
 export const deactivateAsset = async (id) => {
@@ -66,6 +70,6 @@ export const addPayment = async (id, { amount, method, date, notes }) => {
   if (!asset) throw new AppError("Bien no encontrado", 404);
 
   return prisma.assetPayment.create({
-    data: { assetId, amount, method, date: date ? new Date(date) : undefined, notes },
+    data: { assetId, amount, method, date: toDateOrUndefined(date), notes },
   });
 };

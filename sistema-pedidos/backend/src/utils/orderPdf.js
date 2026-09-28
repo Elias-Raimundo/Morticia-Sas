@@ -2,6 +2,8 @@ import PDFDocument from "pdfkit";
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
+import { customerEmail, customerTaxId } from "./customer.js";
+import { formatDateTimeAR } from "./format.js";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 export function buildOrderPdf(order) {
@@ -19,7 +21,7 @@ export function buildOrderPdf(order) {
       const pageHeight = doc.page.height;
       const contentWidth = pageWidth - doc.page.margins.left - doc.page.margins.right;
 
-      const logoPath = path.join(__dirname, "src/assets/logo2sin.png");
+      const logoPath = path.join(__dirname, "../assets/logo2sin.png");
 
       const orderId = order?.id ?? "—";
       const user = order?.user ?? {};
@@ -38,6 +40,7 @@ export function buildOrderPdf(order) {
         const d = value instanceof Date ? value : new Date(value);
         if (Number.isNaN(d.getTime())) return "—";
         return d.toLocaleDateString("es-AR", {
+          timeZone: "UTC", // la fecha de entrega se guarda como día (medianoche UTC): no debe correrse
           weekday: "long",
           day: "numeric",
           month: "long",
@@ -69,7 +72,7 @@ export function buildOrderPdf(order) {
         })
         .text(
           `Fecha: ${
-            order?.createdAt ? new Date(order.createdAt).toLocaleString() : "—"
+            formatDateTimeAR(order?.createdAt)
           }`,
           headerTextX,
           headerTextY + 44,
@@ -102,9 +105,9 @@ export function buildOrderPdf(order) {
         .fontSize(11)
         .fillColor("#333")
         .text(`Nombre: ${user?.name ?? "—"}${user?.lastName ? " " + user.lastName : ""}`)
-        .text(`Email: ${user?.email ?? "—"}`)
+        .text(`Email: ${customerEmail(user) ?? "—"}`)
         .text(`Teléfono: ${user?.phone ?? "—"}`)
-        .text(`DNI/CUIL: ${user?.dniCuil ?? "—"}`)
+        .text(`DNI/CUIL: ${customerTaxId(user?.dniCuil) ?? "—"}`)
         .text(`Dirección: ${user?.address ?? "—"}`);
 
       if (order?.comments) {
