@@ -19,6 +19,8 @@ type Asset = {
   name: string;
   description?: string | null;
   location?: string | null;
+  category?: string | null;
+  installmentsCount?: number | null;
   clientId?: number | null;
   client?: Client | null;
   totalCost?: number | null;
@@ -34,8 +36,17 @@ const formatMoney = (n: number) =>
     maximumFractionDigits: 0,
   }).format(n);
 
+// Fecha con hora real (ej: cuándo se registró un pago): hora local.
 const formatDate = (d?: string | null) =>
   d ? new Date(d).toLocaleDateString("es-AR") : "-";
+
+// Fecha "solo día" (adquisición): en UTC para que no se corra un día en Argentina.
+const formatDay = (d?: string | null) =>
+  d ? new Date(d).toLocaleDateString("es-AR", { timeZone: "UTC" }) : "-";
+
+// "Local" del bien: el cliente donde está, o la ubicación escrita a mano.
+const localOf = (a: { client?: { name: string } | null; location?: string | null }) =>
+  a.client?.name ?? a.location ?? "Sin ubicación";
 
 const METHODS = ["efectivo", "transferencia", "tarjeta", "cheque", "cheque electrónico", "cuotas", "otro"];
 
@@ -51,9 +62,16 @@ export default function BienesPage() {
   const [locationOption, setLocationOption] = useState(""); // "" = sin elegir, "other" = otra, o el id del cliente
   const [customLocation, setCustomLocation] = useState("");
   const [totalCost, setTotalCost] = useState("");
+  const [category, setCategory] = useState("");
+  const [paidInInstallments, setPaidInInstallments] = useState(false);
+  const [installmentsCount, setInstallmentsCount] = useState("");
   const [acquiredAt, setAcquiredAt] = useState("");
   const [firstPaymentAmount, setFirstPaymentAmount] = useState("");
   const [firstPaymentMethod, setFirstPaymentMethod] = useState("efectivo");
+
+  const [searchQuery, setSearchQuery] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState("");
+  const [localFilter, setLocalFilter] = useState("");
 
   const [payingAssetId, setPayingAssetId] = useState<number | null>(null);
   const [payAmount, setPayAmount] = useState("");
@@ -66,6 +84,8 @@ export default function BienesPage() {
     locationOption: "",
     customLocation: "",
     totalCost: "",
+    category: "",
+    installmentsCount: "",
   });
   const [savingEdit, setSavingEdit] = useState(false);
 
@@ -95,6 +115,9 @@ export default function BienesPage() {
     setLocationOption("");
     setCustomLocation("");
     setTotalCost("");
+    setCategory("");
+    setPaidInInstallments(false);
+    setInstallmentsCount("");
     setAcquiredAt("");
     setFirstPaymentAmount("");
     setFirstPaymentMethod("efectivo");
@@ -103,6 +126,10 @@ export default function BienesPage() {
   const createAsset = async () => {
     if (!name.trim()) {
       toast.error("El nombre es obligatorio");
+      return;
+    }
+    if (paidInInstallments && !(Number(installmentsCount) >= 1)) {
+      toast.error("Indicá la cantidad de cuotas");
       return;
     }
     setSaving(true);
@@ -115,6 +142,8 @@ export default function BienesPage() {
           clientId: locationOption && locationOption !== "other" ? Number(locationOption) : null,
           location: locationOption === "other" ? customLocation || undefined : undefined,
           totalCost: totalCost ? Number(totalCost) : undefined,
+          category: category.trim() || undefined,
+          installmentsCount: paidInInstallments ? Number(installmentsCount) : undefined,
           acquiredAt: acquiredAt || undefined,
           payments: firstPaymentAmount
             ? [{ amount: Number(firstPaymentAmount), method: firstPaymentMethod }]
@@ -168,6 +197,8 @@ export default function BienesPage() {
       locationOption: a.clientId ? String(a.clientId) : a.location ? "other" : "",
       customLocation: a.clientId ? "" : a.location ?? "",
       totalCost: a.totalCost != null ? String(a.totalCost) : "",
+      category: a.category ?? "",
+      installmentsCount: a.installmentsCount ? String(a.installmentsCount) : "",
     });
   };
 
@@ -187,8 +218,12 @@ export default function BienesPage() {
             editForm.locationOption && editForm.locationOption !== "other"
               ? Number(editForm.locationOption)
               : null,
-          location: editForm.locationOption === "other" ? editForm.customLocation || undefined : undefined,
+          // null = borrar el dato (con undefined el valor viejo quedaba guardado)
+          location:
+            editForm.locationOption === "other" ? editForm.customLocation.trim() || null : null,
           totalCost: editForm.totalCost ? Number(editForm.totalCost) : undefined,
+          category: editForm.category.trim() || null,
+          installmentsCount: Number(editForm.installmentsCount) >= 1 ? Number(editForm.installmentsCount) : null,
         }),
       });
       const data = await res.json().catch(() => ({}));
@@ -219,10 +254,31 @@ export default function BienesPage() {
     }
   };
 
-  const totalCapital = items.reduce((acc, a) => acc + (a.totalCost ?? 0), 0);
+  const categoryOptions = Array.from(
+    new Set(items.map((a) => a.category?.trim()).filter((c): c is string => !!c))
+  ).sort((a, b) => a.localeCompare(b));
 
-  const capitalPorUbicacion = items.reduce((acc, a) => {
-    const key = a.client?.name ?? a.location ?? "Sin ubicación";
+  const localOptions = Array.from(new Set(items.map(localOf))).sort((a, b) => a.localeCompare(b));
+
+  const query = searchQuery.trim().toLowerCase();
+  const filteredItems = items.filter((a) => {
+    if (categoryFilter && (a.category ?? "") !== categoryFilter) return false;
+    if (localFilter && localOf(a) !== localFilter) return false;
+    if (query) {
+      const haystack = [a.name, a.description, a.category, localOf(a)]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
+      if (!haystack.includes(query)) return false;
+    }
+    return true;
+  });
+  const filtersActive = !!(query || categoryFilter || localFilter);
+
+  const totalCapital = filteredItems.reduce((acc, a) => acc + (a.totalCost ?? 0), 0);
+
+  const capitalPorUbicacion = filteredItems.reduce((acc, a) => {
+    const key = localOf(a);
     acc[key] = (acc[key] ?? 0) + (a.totalCost ?? 0);
     return acc;
   }, {} as Record<string, number>);
@@ -240,7 +296,7 @@ export default function BienesPage() {
           </div>
           <div className="flex flex-col items-end gap-2">
             <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 text-emerald-800 px-3 py-1 text-sm font-semibold">
-              Capital total: {formatMoney(totalCapital)}
+              {filtersActive ? "Capital del filtro" : "Capital total"}: {formatMoney(totalCapital)}
             </span>
             <button
               onClick={() => setShowForm((v) => !v)}
@@ -304,7 +360,40 @@ export default function BienesPage() {
                 className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900"
               />
             </div>
-            <div />
+            <div>
+              <input
+                list="asset-categories"
+                placeholder="Categoría (ej: Herramientas, Equipos)"
+                value={category}
+                onChange={(e) => setCategory(e.target.value)}
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900"
+              />
+              <datalist id="asset-categories">
+                {categoryOptions.map((c) => (
+                  <option key={c} value={c} />
+                ))}
+              </datalist>
+            </div>
+            <div className="rounded-lg border border-gray-200 bg-white px-3 py-2">
+              <label className="flex items-center gap-2 text-sm text-gray-700">
+                <input
+                  type="checkbox"
+                  checked={paidInInstallments}
+                  onChange={(e) => setPaidInInstallments(e.target.checked)}
+                />
+                Se pagó en cuotas
+              </label>
+              {paidInInstallments && (
+                <input
+                  type="number"
+                  min={1}
+                  placeholder="Cantidad de cuotas"
+                  value={installmentsCount}
+                  onChange={(e) => setInstallmentsCount(e.target.value)}
+                  className="mt-2 w-full rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-gray-900"
+                />
+              )}
+            </div>
             <div className="md:col-span-2 border-t border-gray-200 pt-3">
               <p className="text-xs text-gray-500 mb-2">
                 Opcional: registrá el primer pago que hiciste por este bien
@@ -360,13 +449,66 @@ export default function BienesPage() {
       )}
 
       <div className="rounded-2xl border border-gray-200 bg-white shadow-sm overflow-hidden">
+        <div className="p-4 md:p-5 flex flex-wrap items-center gap-3 border-b bg-gray-50">
+          <input
+            type="search"
+            placeholder="Buscar bien..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="min-w-[180px] flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900"
+          />
+          <select
+            value={categoryFilter}
+            onChange={(e) => setCategoryFilter(e.target.value)}
+            className="rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900"
+          >
+            <option value="">Todas las categorías</option>
+            {categoryOptions.map((c) => (
+              <option key={c} value={c}>
+                {c}
+              </option>
+            ))}
+          </select>
+          <select
+            value={localFilter}
+            onChange={(e) => setLocalFilter(e.target.value)}
+            className="rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900"
+          >
+            <option value="">Todos los locales</option>
+            {localOptions.map((l) => (
+              <option key={l} value={l}>
+                {l}
+              </option>
+            ))}
+          </select>
+          {filtersActive && (
+            <>
+              <span className="text-xs text-gray-500">
+                {filteredItems.length} de {items.length}
+              </span>
+              <button
+                onClick={() => {
+                  setSearchQuery("");
+                  setCategoryFilter("");
+                  setLocalFilter("");
+                }}
+                className="text-sm text-amber-700 hover:underline"
+              >
+                Limpiar filtros
+              </button>
+            </>
+          )}
+        </div>
+
         {loading ? (
           <div className="p-6 text-gray-600">Cargando...</div>
         ) : items.length === 0 ? (
           <div className="p-6 text-gray-600">Todavía no registraste ningún bien.</div>
+        ) : filteredItems.length === 0 ? (
+          <div className="p-6 text-gray-600">No hay bienes que coincidan con los filtros.</div>
         ) : (
           <div className="divide-y">
-            {items.map((a) => {
+            {filteredItems.map((a) => {
               const pending = (a.totalCost ?? 0) - a.paidTotal;
 
               if (editingId === a.id) {
@@ -415,6 +557,23 @@ export default function BienesPage() {
                         onChange={(ev) => setEditForm((f) => ({ ...f, totalCost: ev.target.value }))}
                         className="rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900"
                       />
+                      <input
+                        list="asset-categories"
+                        placeholder="Categoría"
+                        value={editForm.category}
+                        onChange={(ev) => setEditForm((f) => ({ ...f, category: ev.target.value }))}
+                        className="rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900"
+                      />
+                      <input
+                        type="number"
+                        min={1}
+                        placeholder="Cantidad de cuotas (vacío = no en cuotas)"
+                        value={editForm.installmentsCount}
+                        onChange={(ev) =>
+                          setEditForm((f) => ({ ...f, installmentsCount: ev.target.value }))
+                        }
+                        className="rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900"
+                      />
                     </div>
                     <div className="flex justify-end gap-2">
                       <button
@@ -439,13 +598,25 @@ export default function BienesPage() {
                 <div key={a.id} className="p-4 md:p-5 space-y-2">
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div>
-                      <div className="font-semibold text-gray-900">{a.name}</div>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="font-semibold text-gray-900">{a.name}</span>
+                        {a.category && (
+                          <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-700">
+                            {a.category}
+                          </span>
+                        )}
+                        {a.installmentsCount ? (
+                          <span className="rounded-full bg-indigo-100 px-2 py-0.5 text-xs font-medium text-indigo-800">
+                            📅 {a.installmentsCount} {a.installmentsCount === 1 ? "cuota" : "cuotas"}
+                          </span>
+                        ) : null}
+                      </div>
                       {a.description && (
                         <div className="text-sm text-gray-500">{a.description}</div>
                       )}
                       <div className="mt-1 text-xs text-gray-500">
                         {(a.client?.name || a.location) && `📍 ${a.client?.name ?? a.location} · `}
-                        Adquirido: {formatDate(a.acquiredAt)}
+                        Adquirido: {formatDay(a.acquiredAt)}
                       </div>
                     </div>
                     <div className="text-right">
@@ -514,7 +685,10 @@ export default function BienesPage() {
                       </>
                     ) : (
                       <button
-                        onClick={() => setPayingAssetId(a.id)}
+                        onClick={() => {
+                          setPayingAssetId(a.id);
+                          setPayMethod(a.installmentsCount ? "cuotas" : "efectivo");
+                        }}
                         className="rounded-lg border border-amber-300 px-3 py-1 text-sm text-amber-700 hover:bg-amber-50"
                       >
                         + Registrar pago

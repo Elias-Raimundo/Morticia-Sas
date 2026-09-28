@@ -17,7 +17,7 @@ type DetailData = {
   user: {
     id: number;
     name: string;
-    email: string;
+    email: string | null;
   };
   balance: number;
   movements: Movement[];
@@ -138,7 +138,7 @@ export default function ClientBalanceModal({
 
               {data?.user && (
                 <p className="mt-1 break-all text-sm text-gray-600">
-                  {data.user.name} — {data.user.email}
+                  {data.user.name} — {data.user.email ?? "sin acceso al sistema"}
                 </p>
               )}
             </div>

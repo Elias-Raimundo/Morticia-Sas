@@ -27,6 +27,7 @@ export default function ProveedoresPage() {
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
 
   const [name, setName] = useState("");
   const [cuit, setCuit] = useState("");
@@ -90,7 +91,18 @@ export default function ProveedoresPage() {
     }
   };
 
-  const totalDeuda = items.reduce((acc, p) => acc + p.debt, 0);
+  const query = searchQuery.trim().toLowerCase();
+  const filteredItems = query
+    ? items.filter((p) =>
+        [p.name, p.cuit, p.phone, p.email, p.address]
+          .filter(Boolean)
+          .join(" ")
+          .toLowerCase()
+          .includes(query)
+      )
+    : items;
+
+  const totalDeuda = filteredItems.reduce((acc, p) => acc + p.debt, 0);
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-amber-50 via-white to-white p-4 md:p-6 space-y-6">
@@ -106,7 +118,7 @@ export default function ProveedoresPage() {
 
           <div className="flex flex-col items-end gap-2">
             <span className="inline-flex items-center gap-1 rounded-full bg-red-100 text-red-800 px-3 py-1 text-sm font-semibold">
-              Deuda total: {formatMoney(totalDeuda)}
+              {query ? "Deuda del filtro" : "Deuda total"}: {formatMoney(totalDeuda)}
             </span>
             <button
               onClick={() => setShowForm((v) => !v)}
@@ -163,13 +175,30 @@ export default function ProveedoresPage() {
       </div>
 
       <div className="rounded-2xl border border-gray-200 bg-white shadow-sm overflow-hidden">
+        <div className="p-4 md:p-5 flex flex-wrap items-center gap-3 border-b bg-gray-50">
+          <input
+            type="search"
+            placeholder="Buscar proveedor por nombre, CUIT, teléfono, email o dirección..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="min-w-[200px] flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900"
+          />
+          {query && (
+            <span className="text-xs text-gray-500">
+              {filteredItems.length} de {items.length}
+            </span>
+          )}
+        </div>
+
         {loading ? (
           <div className="p-6 text-gray-600">Cargando...</div>
         ) : items.length === 0 ? (
           <div className="p-6 text-gray-600">Todavía no cargaste ningún proveedor.</div>
+        ) : filteredItems.length === 0 ? (
+          <div className="p-6 text-gray-600">No hay proveedores que coincidan con la búsqueda.</div>
         ) : (
           <div className="divide-y">
-            {items.map((p) => (
+            {filteredItems.map((p) => (
               <Link
                 key={p.id}
                 href={`/dashboard/admin/proveedores/${p.id}`}

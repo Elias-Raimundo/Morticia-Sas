@@ -92,6 +92,8 @@ export default function AdminProductsPage() {
   const [savingCategory, setSavingCategory] = useState(false);
   const [editingCategoryId, setEditingCategoryId] = useState<number | null>(null);
   const [editingCategoryName, setEditingCategoryName] = useState("");
+  const [includeOutOfStock, setIncludeOutOfStock] = useState(false);
+  const [downloadingCatalog, setDownloadingCatalog] = useState(false);
 
 
   const load = async () => {
@@ -384,6 +386,33 @@ export default function AdminProductsPage() {
     }
   };
 
+  // Catálogo en PDF para clientes (con fotos y precios de lista)
+  const downloadCatalog = async () => {
+    setDownloadingCatalog(true);
+    try {
+      const res = await apiFetch(`/api/catalog/pdf?includeOutOfStock=${includeOutOfStock}`);
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        toast.error(data?.error || "No se pudo generar el catálogo");
+        return;
+      }
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `catalogo-morticia-${new Date().toLocaleDateString("en-CA")}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error(error);
+      toast.error("Error de red al generar el catálogo");
+    } finally {
+      setDownloadingCatalog(false);
+    }
+  };
+
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
   const file = e.target.files?.[0];
   if (!file) {
@@ -442,7 +471,7 @@ return (
     {/* Header */}
     <div className="rounded-2xl border border-amber-200 bg-white shadow-sm overflow-hidden">
       <div className="h-2 bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-500" />
-      <div className="flex items-center gap-3 p-4 md:gap-4 md:p-6">
+      <div className="flex flex-wrap items-center gap-3 p-4 md:gap-4 md:p-6">
         <img
           src="/logo2.jpeg"
           alt="Morticia"
@@ -455,6 +484,23 @@ return (
           <p className="mt-1 text-sm text-gray-700">
             Administración del catálogo de Morticia-SAS
           </p>
+        </div>
+        <div className="ml-auto flex flex-col items-end gap-2">
+          <button
+            onClick={downloadCatalog}
+            disabled={downloadingCatalog}
+            className="rounded-xl bg-amber-500 px-4 py-2 text-sm font-semibold text-gray-950 hover:bg-amber-600 disabled:opacity-60"
+          >
+            {downloadingCatalog ? "Generando catálogo..." : "Descargar catálogo (PDF)"}
+          </button>
+          <label className="flex items-center gap-2 text-xs text-gray-600">
+            <input
+              type="checkbox"
+              checked={includeOutOfStock}
+              onChange={(e) => setIncludeOutOfStock(e.target.checked)}
+            />
+            Incluir productos sin stock
+          </label>
         </div>
       </div>
     </div>

@@ -252,9 +252,11 @@ export default function OrderDetailsModal({
                   <div>
                     <b>Cliente:</b> {order.user.name}
                   </div>
-                  <div>
-                    <b>Email:</b> {order.user.email}
-                  </div>
+                  {order.user.email && (
+                    <div>
+                      <b>Email:</b> {order.user.email}
+                    </div>
+                  )}
                 </div>
               )}
 
