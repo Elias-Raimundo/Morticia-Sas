@@ -27,6 +27,7 @@ model User {
   notifications    Notification[]
   orders           Order[]
   assets           Asset[]
+  quotes           Quote[]
 }
 
 model Product {
@@ -43,6 +44,7 @@ model Product {
   categoryId Int?
   category  Category?   @relation(fields: [categoryId], references: [id])
   imageUrl  String?
+  quoteItems QuoteItem[]
 
   @@index([categoryId])
 }
@@ -83,6 +85,48 @@ model OrderItem {
   subtotal  Float
   order     Order   @relation(fields: [orderId], references: [id])
   product   Product @relation(fields: [productId], references: [id])
+}
+
+// ============ Presupuestos ============
+// Totalmente separados de Order a propósito: un presupuesto nunca debe mover stock
+// ni generar un movimiento de saldo. Si se elige un cliente existente, se guarda la
+// referencia (para prellenar datos/descuento), pero los datos del cliente se copian
+// igual a los campos propios para que el presupuesto no dependa de que esa cuenta siga
+// existiendo. Si es un cliente nuevo, NO se crea ningún User: solo queda el texto acá,
+// así los presupuestos no ensucian el listado de clientes.
+model Quote {
+  id              Int         @id @default(autoincrement())
+  customerId      Int?
+  customerName    String
+  legalName       String?
+  taxId           String?
+  address         String?
+  contactEmail    String?
+  discountPercent Float       @default(0)
+  comments        String?
+  total           Decimal     @default(0) @db.Decimal(10, 2)
+  createdAt       DateTime    @default(now())
+  customer        User?       @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  items           QuoteItem[]
+
+  @@index([customerId])
+  @@index([createdAt])
+}
+
+model QuoteItem {
+  id        Int      @id @default(autoincrement())
+  quoteId   Int
+  productId Int?
+  name      String // snapshot: el nombre del producto al momento del presupuesto
+  unit      String?
+  quantity  Int
+  unitPrice Float
+  subtotal  Float
+  quote     Quote    @relation(fields: [quoteId], references: [id], onDelete: Cascade)
+  product   Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
+
+  @@index([quoteId])
+  @@index([productId])
 }
 
 model Notification {

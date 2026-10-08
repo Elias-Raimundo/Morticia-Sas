@@ -27,6 +27,7 @@ import adminUserRoutes from "./routes/adminUser.routes.js";
 import accountRoutes from "./routes/account.routes.js";
 import saleRoutes from "./routes/sale.routes.js";
 import catalogRoutes from "./routes/catalog.routes.js";
+import quoteRoutes from "./routes/quote.routes.js";
 
 const app = express();
 app.set("trust proxy", 1); 
@@ -92,6 +93,7 @@ app.use("/api/admins", adminUserRoutes);
 app.use("/api/accounts", accountRoutes);
 app.use("/api/sales", saleRoutes);
 app.use("/api/catalog", catalogRoutes);
+app.use("/api/quotes", quoteRoutes);
 
 
 app.get("/api/user/me", authMiddleware, async (req, res) => {

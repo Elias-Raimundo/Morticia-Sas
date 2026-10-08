@@ -74,9 +74,15 @@ const mapWithLimit = async (items, limit, fn) => {
   return results;
 };
 
-export const getCatalogPdf = async ({ includeOutOfStock = false } = {}) => {
+export const getCatalogPdf = async ({ includeOutOfStock = false, productIds = null } = {}) => {
+  // Si se pasa una lista puntual de productos (catálogo "a medida"), se incluyen esos
+  // tal cual fueron elegidos, sin aplicar el filtro de stock: elegirlos a mano ya es una
+  // decisión explícita de incluirlos.
+  const hasSelection = Array.isArray(productIds) && productIds.length > 0;
   const products = await prisma.product.findMany({
-    where: { active: true, ...(includeOutOfStock ? {} : { stock: { gt: 0 } }) },
+    where: hasSelection
+      ? { active: true, id: { in: productIds } }
+      : { active: true, ...(includeOutOfStock ? {} : { stock: { gt: 0 } }) },
     // el costo interno (internalPrice) NO se selecciona a propósito: el catálogo es para clientes
     select: {
       id: true,

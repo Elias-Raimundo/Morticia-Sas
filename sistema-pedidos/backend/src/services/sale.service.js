@@ -14,7 +14,7 @@ const clean = (v) => {
 // circuito que los pedidos comunes (precio congelado por línea, descuento del cliente,
 // baja de stock atómica y movimiento de saldo). Si se cobró en el momento, se registra
 // además el pago; si no, queda a cuenta del cliente.
-export const createSale = async ({ customer, items, paymentMethod, comments }) => {
+export const createSale = async ({ customer, items, paymentMethod, comments, discountPercent }) => {
   // si el mismo producto viene en dos líneas, se suman
   const qtyByProduct = new Map();
   for (const it of items) {
@@ -108,9 +108,13 @@ export const createSale = async ({ customer, items, paymentMethod, comments }) =
         lines.push({ productId, quantity: qty, unitPrice: p.price, subtotal: p.price * qty });
       }
 
-      // 4) Total, con el descuento del cliente (si tiene)
+      // 4) Total, con el descuento del cliente (si tiene) salvo que se mande un
+      // descuento manual puntual para esta venta (ej: "te doy X% por comprarme tanto"),
+      // que lo reemplaza sin tocar el descuento habitual guardado en la cuenta.
       const subtotal = lines.reduce((acc, l) => acc + l.subtotal, 0);
-      const total = Math.round((subtotal - subtotal * ((user.discount || 0) / 100)) * 100) / 100;
+      const effectiveDiscount =
+        discountPercent === null || discountPercent === undefined ? user.discount || 0 : discountPercent;
+      const total = Math.round((subtotal - subtotal * (effectiveDiscount / 100)) * 100) / 100;
 
       // 5) Venta
       const method = clean(paymentMethod);
