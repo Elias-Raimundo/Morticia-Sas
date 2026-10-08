@@ -35,6 +35,16 @@ type Sale = {
   itemsCount: number;
 };
 
+type Quote = {
+  id: number;
+  number: string;
+  createdAt: string;
+  total: number;
+  discountPercent: number;
+  customer: { name: string; legalName?: string | null };
+  itemsCount: number;
+};
+
 const PAYMENT_OPTIONS = [
   { value: "", label: "A cuenta (queda debiendo)" },
   { value: "efectivo", label: "Cobrado en efectivo" },
@@ -72,7 +82,12 @@ export default function VentasPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
   const [sales, setSales] = useState<Sale[]>([]);
+  const [quotes, setQuotes] = useState<Quote[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // Venta al público (de verdad, con stock y saldo) o presupuesto (no toca stock ni
+  // saldo, solo genera un PDF para mostrarle un precio al cliente).
+  const [docType, setDocType] = useState<"venta" | "presupuesto">("venta");
 
   // cliente
   const [customerMode, setCustomerMode] = useState<"new" | "existing">("new");
@@ -88,9 +103,11 @@ export default function VentasPage() {
   const [productSearch, setProductSearch] = useState("");
   const [cart, setCart] = useState<CartLine[]>([]);
 
-  // cobro
+  // cobro (y descuento, que aplica tanto a ventas como a presupuestos)
   const [paymentMethod, setPaymentMethod] = useState("");
   const [comments, setComments] = useState("");
+  const [discountPercent, setDiscountPercent] = useState("0");
+  const [discountTouched, setDiscountTouched] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [cancelingId, setCancelingId] = useState<number | null>(null);
   const [showCartPanel, setShowCartPanel] = useState(false);
@@ -102,19 +119,22 @@ export default function VentasPage() {
 
   const load = async () => {
     try {
-      const [pRes, cRes, sRes] = await Promise.all([
+      const [pRes, cRes, sRes, qRes] = await Promise.all([
         apiFetch("/api/products"),
         apiFetch("/api/balance/admin/clients"),
         apiFetch("/api/sales"),
+        apiFetch("/api/quotes"),
       ]);
-      const [p, c, s] = await Promise.all([
+      const [p, c, s, q] = await Promise.all([
         pRes.json().catch(() => []),
         cRes.json().catch(() => []),
         sRes.json().catch(() => []),
+        qRes.json().catch(() => []),
       ]);
       setProducts(Array.isArray(p) ? p : []);
       setClients(Array.isArray(c) ? c : []);
       setSales(Array.isArray(s) ? s : []);
+      setQuotes(Array.isArray(q) ? q : []);
     } catch (e) {
       console.error(e);
       toast.error("No se pudieron cargar los datos");
@@ -130,7 +150,18 @@ export default function VentasPage() {
   // ---------- cálculos ----------
   const productById = (id: number) => products.find((p) => p.id === id);
   const selectedClient = clients.find((c) => c.id === existingId) ?? null;
-  const discountPct = customerMode === "existing" ? selectedClient?.discount ?? 0 : 0;
+
+  // El % de descuento parte del descuento habitual del cliente, pero siempre se puede
+  // editar a mano (ej: "te doy un 15% por comprarme 20 unidades"), para una venta o un
+  // presupuesto puntual, sin tocar el descuento guardado en la cuenta del cliente.
+  useEffect(() => {
+    if (discountTouched) return;
+    const standing = customerMode === "existing" ? selectedClient?.discount ?? 0 : 0;
+    setDiscountPercent(String(standing));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [existingId, customerMode]);
+
+  const discountPct = Math.max(0, Math.min(100, Number(discountPercent) || 0));
 
   const subtotal = cart.reduce((acc, l) => acc + (productById(l.productId)?.price ?? 0) * l.quantity, 0);
   const discountAmount = subtotal * (discountPct / 100);
@@ -152,12 +183,17 @@ export default function VentasPage() {
     .slice(0, 6);
 
   // ---------- carrito ----------
+  // Un presupuesto no reserva stock: se puede cotizar más cantidad de la que hay hoy
+  // (por ejemplo, para una reposición futura), así que el límite de stock solo se
+  // aplica en modo "venta".
+  const isQuote = docType === "presupuesto";
+
   const addToCart = (p: Product) => {
-    if (p.stock <= 0) return;
+    if (!isQuote && p.stock <= 0) return;
     setCart((prev) => {
       const existing = prev.find((l) => l.productId === p.id);
       if (existing) {
-        if (existing.quantity >= p.stock) {
+        if (!isQuote && existing.quantity >= p.stock) {
           toast.error(`Solo hay ${p.stock} de ${p.name} en stock`);
           return prev;
         }
@@ -171,7 +207,7 @@ export default function VentasPage() {
     const p = productById(productId);
     let q = Math.floor(Number(raw));
     if (!Number.isFinite(q) || q < 1) q = 1;
-    if (p && q > p.stock) {
+    if (!isQuote && p && q > p.stock) {
       q = p.stock;
       toast.error(`Solo hay ${p.stock} de ${p.name} en stock`);
     }
@@ -216,7 +252,38 @@ export default function VentasPage() {
     window.URL.revokeObjectURL(url);
   };
 
-  // ---------- registrar venta ----------
+  // ---------- presupuesto (PDF) ----------
+  const fetchQuotePdf = async (quoteId: number) => {
+    const res = await apiFetch(`/api/quotes/${quoteId}/pdf`);
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      throw new Error(data?.error || "No se pudo cargar el presupuesto");
+    }
+    return res.blob();
+  };
+
+  const viewQuotePdf = async (quoteId: number) => {
+    try {
+      const blob = await fetchQuotePdf(quoteId);
+      window.open(window.URL.createObjectURL(blob), "_blank");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Error cargando el presupuesto");
+    }
+  };
+
+  const downloadQuotePdf = async (quoteId: number, number: string) => {
+    const blob = await fetchQuotePdf(quoteId);
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `presupuesto_${number}.pdf`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    window.URL.revokeObjectURL(url);
+  };
+
+  // ---------- registrar venta / generar presupuesto ----------
   const resetForm = () => {
     setName("");
     setLegalName("");
@@ -229,8 +296,21 @@ export default function VentasPage() {
     setCart([]);
     setPaymentMethod("");
     setComments("");
+    setDiscountPercent("0");
+    setDiscountTouched(false);
     setShowCartPanel(false);
   };
+
+  const customerPayload = () =>
+    customerMode === "existing"
+      ? { id: existingId }
+      : {
+          name: name.trim(),
+          legalName: legalName.trim() || undefined,
+          cuit: cuit.trim() || undefined,
+          address: address.trim() || undefined,
+          email: email.trim() || undefined,
+        };
 
   const submitSale = async () => {
     if (customerMode === "new" && !name.trim()) {
@@ -248,22 +328,42 @@ export default function VentasPage() {
 
     setSubmitting(true);
     try {
+      if (docType === "presupuesto") {
+        const res = await apiFetch("/api/quotes", {
+          method: "POST",
+          body: JSON.stringify({
+            customer: customerPayload(),
+            items: cart.map((l) => ({ productId: l.productId, quantity: l.quantity })),
+            discountPercent: discountPct,
+            comments: comments.trim() || undefined,
+          }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          toast.error(data?.error || "No se pudo generar el presupuesto");
+          return;
+        }
+
+        toast.success(`Presupuesto generado · N° ${data.quote.number}`);
+        try {
+          await downloadQuotePdf(data.quote.id, data.quote.number);
+        } catch {
+          toast.error("El presupuesto se generó, pero no se pudo descargar el PDF. Descargalo desde la lista.");
+        }
+
+        resetForm();
+        load(); // actualiza la lista de presupuestos (no toca stock ni saldo)
+        return;
+      }
+
       const res = await apiFetch("/api/sales", {
         method: "POST",
         body: JSON.stringify({
-          customer:
-            customerMode === "existing"
-              ? { id: existingId }
-              : {
-                  name: name.trim(),
-                  legalName: legalName.trim() || undefined,
-                  cuit: cuit.trim() || undefined,
-                  address: address.trim() || undefined,
-                  email: email.trim() || undefined,
-                },
+          customer: customerPayload(),
           items: cart.map((l) => ({ productId: l.productId, quantity: l.quantity })),
           paymentMethod: paymentMethod || null,
           comments: comments.trim() || undefined,
+          discountPercent: discountPct,
         }),
       });
       const data = await res.json().catch(() => ({}));
@@ -314,11 +414,40 @@ export default function VentasPage() {
     <div className="min-h-screen bg-gradient-to-b from-amber-50 via-white to-white p-4 md:p-6 space-y-6 pb-28">
       <div className="rounded-2xl border border-amber-200 bg-white shadow-sm overflow-hidden">
         <div className="h-2 bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-500" />
-        <div className="p-5 md:p-6">
-          <h1 className="text-2xl md:text-3xl font-bold text-gray-900">Venta al público</h1>
+        <div className="p-5 md:p-6 space-y-3">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <h1 className="text-2xl md:text-3xl font-bold text-gray-900">Venta al público</h1>
+            <div className="inline-flex rounded-lg border border-gray-300 overflow-hidden text-sm">
+              <button
+                onClick={() => setDocType("venta")}
+                className={`px-3 py-1.5 ${
+                  docType === "venta" ? "bg-amber-500 font-semibold text-gray-950" : "bg-white text-gray-700"
+                }`}
+              >
+                Venta
+              </button>
+              <button
+                onClick={() => setDocType("presupuesto")}
+                className={`px-3 py-1.5 border-l border-gray-300 ${
+                  docType === "presupuesto" ? "bg-amber-500 font-semibold text-gray-950" : "bg-white text-gray-700"
+                }`}
+              >
+                Presupuesto
+              </button>
+            </div>
+          </div>
           <p className="mt-1 text-sm text-gray-700">
-            Vendé a un cliente que no hizo el pedido por el sistema y generá el remito en PDF. El
-            cliente nuevo queda guardado sin acceso: se ve en Administración con su historial y saldo.
+            {docType === "venta" ? (
+              <>
+                Vendé a un cliente que no hizo el pedido por el sistema y generá el remito en PDF. El
+                cliente nuevo queda guardado sin acceso: se ve en Administración con su historial y saldo.
+              </>
+            ) : (
+              <>
+                Generá un presupuesto en PDF para mostrarle un precio a un cliente. No descuenta stock ni
+                genera saldo pendiente: es solo una cotización, todavía no una venta.
+              </>
+            )}
           </p>
         </div>
       </div>
@@ -381,7 +510,9 @@ export default function VentasPage() {
               onChange={(e) => setEmail(e.target.value)}
             />
             <p className="text-xs text-gray-500 md:col-span-2">
-              Si cargás un CUIT/CUIL que ya pertenece a un cliente, la venta se le carga a esa cuenta.
+              {docType === "venta"
+                ? "Si cargás un CUIT/CUIL que ya pertenece a un cliente, la venta se le carga a esa cuenta."
+                : "Este cliente es solo para el presupuesto: no se guarda como cuenta nueva."}
             </p>
           </div>
         ) : (
@@ -473,11 +604,14 @@ export default function VentasPage() {
                       <span className={p.stock <= 0 ? "text-red-600 font-medium" : ""}>
                         {p.stock <= 0 ? "sin stock" : `stock: ${p.stock}`}
                       </span>
+                      {isQuote && p.stock <= 0 && (
+                        <span className="ml-1 text-amber-600">(se puede cotizar igual)</span>
+                      )}
                     </div>
                   </div>
                   <button
                     onClick={() => addToCart(p)}
-                    disabled={p.stock <= 0}
+                    disabled={!isQuote && p.stock <= 0}
                     className="shrink-0 rounded-lg border border-amber-300 px-3 py-1 text-amber-700 hover:bg-amber-50 disabled:opacity-40"
                   >
                     + Agregar
@@ -506,7 +640,7 @@ export default function VentasPage() {
                     <input
                       type="number"
                       min={1}
-                      max={p.stock}
+                      max={isQuote ? undefined : p.stock}
                       value={l.quantity}
                       onChange={(e) => setQuantity(l.productId, e.target.value)}
                       className="w-20 rounded-lg border border-gray-300 px-2 py-1 text-sm text-gray-900"
@@ -528,24 +662,47 @@ export default function VentasPage() {
         )}
       </div>
 
-      {/* 3. Cobro */}
+      {/* 3. Cobro / presupuesto */}
       <div className="rounded-2xl border border-gray-200 bg-white shadow-sm p-5 md:p-6 space-y-4">
-        <h2 ref={paymentSectionRef} className="scroll-mt-20 text-lg font-bold text-gray-900">3. Cobro y remito</h2>
+        <h2 ref={paymentSectionRef} className="scroll-mt-20 text-lg font-bold text-gray-900">
+          {docType === "venta" ? "3. Cobro y remito" : "3. Presupuesto"}
+        </h2>
+
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          <select
-            className={inputClass}
-            value={paymentMethod}
-            onChange={(e) => setPaymentMethod(e.target.value)}
-          >
-            {PAYMENT_OPTIONS.map((o) => (
-              <option key={o.value} value={o.value}>
-                {o.label}
-              </option>
-            ))}
-          </select>
+          {docType === "venta" && (
+            <select
+              className={inputClass}
+              value={paymentMethod}
+              onChange={(e) => setPaymentMethod(e.target.value)}
+            >
+              {PAYMENT_OPTIONS.map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
+            </select>
+          )}
+          <div>
+            <label className="mb-1 block text-xs font-medium text-gray-600">
+              Descuento (%){selectedClient?.discount ? ` · habitual del cliente: ${selectedClient.discount}%` : ""}
+            </label>
+            <input
+              type="number"
+              min={0}
+              max={100}
+              step="0.01"
+              className={inputClass}
+              placeholder="0"
+              value={discountPercent}
+              onChange={(e) => {
+                setDiscountTouched(true);
+                setDiscountPercent(e.target.value);
+              }}
+            />
+          </div>
           <input
-            className={inputClass}
-            placeholder="Observaciones (opcional, salen en el remito)"
+            className={`${inputClass} ${docType === "venta" ? "" : "md:col-span-2"}`}
+            placeholder={`Observaciones (opcional, salen en el ${docType === "venta" ? "remito" : "presupuesto"})`}
             value={comments}
             onChange={(e) => setComments(e.target.value)}
           />
@@ -560,7 +717,11 @@ export default function VentasPage() {
             )}
             <div className="text-lg font-bold text-gray-900">Total: {formatMoney(total)}</div>
             <div className="text-xs text-gray-500">
-              {paymentMethod ? "Se registra el cobro en el momento." : "Queda a cuenta del cliente."}
+              {docType === "venta"
+                ? paymentMethod
+                  ? "Se registra el cobro en el momento."
+                  : "Queda a cuenta del cliente."
+                : "No descuenta stock ni genera saldo: es solo una cotización."}
             </div>
           </div>
           <button
@@ -568,7 +729,13 @@ export default function VentasPage() {
             disabled={submitting || cart.length === 0}
             className="rounded-xl bg-amber-500 px-5 py-2.5 text-sm font-semibold text-gray-950 hover:bg-amber-600 disabled:opacity-50"
           >
-            {submitting ? "Registrando..." : "Registrar venta y generar remito"}
+            {submitting
+              ? docType === "venta"
+                ? "Registrando..."
+                : "Generando..."
+              : docType === "venta"
+              ? "Registrar venta y generar remito"
+              : "Generar presupuesto (PDF)"}
           </button>
         </div>
       </div>
@@ -617,7 +784,7 @@ export default function VentasPage() {
                 onClick={goToPayment}
                 className="mt-3 w-full rounded-xl bg-amber-500 px-4 py-2 text-sm font-semibold text-gray-950 hover:bg-amber-600"
               >
-                Ir a cobrar
+                {docType === "venta" ? "Ir a cobrar" : "Ir al presupuesto"}
               </button>
             </div>
           )}
@@ -640,7 +807,7 @@ export default function VentasPage() {
                 onClick={goToPayment}
                 className="shrink-0 rounded-xl bg-amber-500 px-4 py-2 text-sm font-semibold text-gray-950 hover:bg-amber-600"
               >
-                Ir a cobrar
+                {docType === "venta" ? "Ir a cobrar" : "Ir al presupuesto"}
               </button>
             </div>
           </div>
@@ -710,6 +877,50 @@ export default function VentasPage() {
                 </li>
               );
             })}
+          </ul>
+        )}
+      </div>
+
+      {/* Últimos presupuestos */}
+      <div className="rounded-2xl border border-gray-200 bg-white shadow-sm overflow-hidden">
+        <div className="px-5 py-4 border-b bg-gray-50">
+          <h2 className="text-lg font-bold text-gray-900">Últimos presupuestos</h2>
+          <p className="text-xs text-gray-500">No afectan stock ni saldo: son solo cotizaciones.</p>
+        </div>
+        {loading ? (
+          <div className="p-5 text-sm text-gray-600">Cargando...</div>
+        ) : quotes.length === 0 ? (
+          <div className="p-5 text-sm text-gray-600">Todavía no generaste presupuestos.</div>
+        ) : (
+          <ul className="divide-y">
+            {quotes.map((q) => (
+              <li key={q.id} className="flex flex-wrap items-center justify-between gap-3 px-5 py-3">
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="font-medium text-gray-900">Presupuesto N° {q.number}</span>
+                    {q.discountPercent > 0 && (
+                      <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-800">
+                        {q.discountPercent}% desc.
+                      </span>
+                    )}
+                  </div>
+                  <div className="text-xs text-gray-500">
+                    {formatDateTime(q.createdAt)} · {q.customer.name}
+                    {q.customer.legalName && ` (${q.customer.legalName})`} · {q.itemsCount}{" "}
+                    {q.itemsCount === 1 ? "producto" : "productos"}
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="font-semibold text-gray-900">{formatMoney(q.total)}</span>
+                  <button
+                    onClick={() => viewQuotePdf(q.id)}
+                    className="rounded-lg border border-amber-300 px-3 py-1 text-xs font-medium text-amber-700 hover:bg-amber-50"
+                  >
+                    Ver presupuesto
+                  </button>
+                </div>
+              </li>
+            ))}
           </ul>
         )}
       </div>

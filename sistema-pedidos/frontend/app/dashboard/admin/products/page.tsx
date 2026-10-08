@@ -94,6 +94,8 @@ export default function AdminProductsPage() {
   const [editingCategoryName, setEditingCategoryName] = useState("");
   const [includeOutOfStock, setIncludeOutOfStock] = useState(false);
   const [downloadingCatalog, setDownloadingCatalog] = useState(false);
+  const [selectedForCatalog, setSelectedForCatalog] = useState<Set<number>>(new Set());
+  const [downloadingSelectedCatalog, setDownloadingSelectedCatalog] = useState(false);
 
 
   const load = async () => {
@@ -413,6 +415,46 @@ export default function AdminProductsPage() {
     }
   };
 
+  const toggleCatalogSelection = (id: number) => {
+    setSelectedForCatalog((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const clearCatalogSelection = () => setSelectedForCatalog(new Set());
+
+  // Catálogo en PDF de solo los productos elegidos a mano (ej: para un cliente puntual)
+  const downloadSelectedCatalog = async () => {
+    if (selectedForCatalog.size === 0) return;
+    setDownloadingSelectedCatalog(true);
+    try {
+      const ids = [...selectedForCatalog].join(",");
+      const res = await apiFetch(`/api/catalog/pdf?productIds=${ids}`);
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        toast.error(data?.error || "No se pudo generar el catálogo de seleccionados");
+        return;
+      }
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `catalogo-morticia-seleccion-${new Date().toLocaleDateString("en-CA")}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error(error);
+      toast.error("Error de red al generar el catálogo");
+    } finally {
+      setDownloadingSelectedCatalog(false);
+    }
+  };
+
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
   const file = e.target.files?.[0];
   if (!file) {
@@ -501,6 +543,21 @@ return (
             />
             Incluir productos sin stock
           </label>
+          <button
+            onClick={downloadSelectedCatalog}
+            disabled={downloadingSelectedCatalog || selectedForCatalog.size === 0}
+            className="rounded-xl border border-amber-300 px-4 py-2 text-sm font-semibold text-amber-700 hover:bg-amber-50 disabled:opacity-40"
+            title={selectedForCatalog.size === 0 ? "Marcá productos en la lista para armar un catálogo a medida" : undefined}
+          >
+            {downloadingSelectedCatalog
+              ? "Generando..."
+              : `Descargar catálogo de seleccionados${selectedForCatalog.size > 0 ? ` (${selectedForCatalog.size})` : ""}`}
+          </button>
+          {selectedForCatalog.size > 0 && (
+            <button onClick={clearCatalogSelection} className="text-xs text-gray-500 hover:underline">
+              Limpiar selección
+            </button>
+          )}
         </div>
       </div>
     </div>
@@ -910,6 +967,13 @@ return (
                   ) : (
                     <>
                       <div className="flex items-center gap-3">
+                        <input
+                          type="checkbox"
+                          checked={selectedForCatalog.has(p.id)}
+                          onChange={() => toggleCatalogSelection(p.id)}
+                          title="Incluir en el catálogo de seleccionados"
+                          className="h-4 w-4 shrink-0 accent-amber-500"
+                        />
                         <ProductThumbnail imageUrl={p.imageUrl} size="h-14 w-14" />
                         <div className="font-semibold text-gray-900">{p.name}</div>
                       </div>
@@ -1041,6 +1105,13 @@ return (
                         />
                       ) : (
                         <div className="flex items-center gap-2">
+                          <input
+                            type="checkbox"
+                            checked={selectedForCatalog.has(p.id)}
+                            onChange={() => toggleCatalogSelection(p.id)}
+                            title="Incluir en el catálogo de seleccionados"
+                            className="h-4 w-4 shrink-0 accent-amber-500"
+                          />
                           <ProductThumbnail imageUrl={p.imageUrl} size="h-9 w-9" />
                           <span className="font-medium text-gray-900 truncate">{p.name}</span>
                         </div>
