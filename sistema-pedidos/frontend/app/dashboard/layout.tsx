@@ -17,6 +17,12 @@ export default function DashboardLayout({
   const [openNotifications, setOpenNotifications] = useState(false);
   const [notificationList, setNotificationList] = useState<any[]>([]);
   const dropdownRef = useRef<HTMLDivElement | null>(null);
+  const [billing, setBilling] = useState<{
+    state: "ok" | "warning" | "readonly";
+    monthName?: string;
+    readOnlyFromDay?: number;
+    contact?: string | null;
+  }>({ state: "ok" });
 
   useEffect(() => {
     if (!loading && !user) router.push("/login");
@@ -52,6 +58,26 @@ export default function DashboardLayout({
     const pollingInterval = user.role === "admin" ? 5000 : 30000;
     const interval = setInterval(fetchNotifications, pollingInterval);
 
+    return () => clearInterval(interval);
+  }, [user]);
+
+  // Estado de la mensualidad del sistema (el aviso de vencimiento solo le llega al admin)
+  useEffect(() => {
+    if (!user) return;
+
+    const fetchBilling = async () => {
+      try {
+        const res = await apiFetch("/api/billing/status");
+        if (!res.ok) return;
+        const data = await res.json().catch(() => null);
+        if (data?.state) setBilling(data);
+      } catch (error) {
+        console.error(error);
+      }
+    };
+
+    fetchBilling();
+    const interval = setInterval(fetchBilling, 5 * 60 * 1000);
     return () => clearInterval(interval);
   }, [user]);
 
@@ -204,6 +230,32 @@ export default function DashboardLayout({
             )}
           </div>
         </div>
+
+        {billing.state === "warning" && isAdmin && (
+          <div className="mb-4 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+            <span className="font-semibold">Tu mensualidad{billing.monthName ? ` de ${billing.monthName}` : ""} está vencida.</span>{" "}
+            Regularizala antes del {billing.readOnlyFromDay ?? 15} para no perder la posibilidad de cargar y modificar datos:
+            pasada esa fecha el sistema queda en modo solo lectura.
+            {billing.contact ? ` Contacto: ${billing.contact}.` : ""}
+          </div>
+        )}
+
+        {billing.state === "readonly" && (
+          <div className="mb-4 rounded-xl border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-900">
+            {isAdmin ? (
+              <>
+                <span className="font-semibold">Sistema en modo solo lectura por falta de pago de la mensualidad.</span>{" "}
+                Podés consultar toda la información, pero no cargar ni modificar datos hasta regularizar el pago.
+                {billing.contact ? ` Contacto: ${billing.contact}.` : ""}
+              </>
+            ) : (
+              <>
+                <span className="font-semibold">El sistema está en modo solo lectura por el momento.</span>{" "}
+                Podés consultar tu información, pero no hacer pedidos nuevos. Contactá al local.
+              </>
+            )}
+          </div>
+        )}
 
         {children}
       </main>
