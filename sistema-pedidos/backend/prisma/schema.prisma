@@ -324,6 +324,18 @@ model AssetPayment {
   @@index([assetId])
 }
 
+// ============ Mensualidad del sistema ============
+// Una fila por mes pagado (period = "2026-10"). Se carga a mano desde Supabase cuando
+// llega el pago; si el mes en curso no tiene fila, rige el aviso (día 10) y el modo
+// solo lectura (día 15). Ver utils/billing.js.
+model BillingMonth {
+  id     Int      @id @default(autoincrement())
+  period String   @unique
+  paid   Boolean  @default(true)
+  paidAt DateTime @default(now())
+  notes  String?
+}
+
 enum Role {
   admin
   client

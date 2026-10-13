@@ -28,6 +28,8 @@ import accountRoutes from "./routes/account.routes.js";
 import saleRoutes from "./routes/sale.routes.js";
 import catalogRoutes from "./routes/catalog.routes.js";
 import quoteRoutes from "./routes/quote.routes.js";
+import billingRoutes from "./routes/billing.routes.js";
+import { readOnlyGuard } from "./middleware/billing.middleware.js";
 
 const app = express();
 app.set("trust proxy", 1); 
@@ -72,6 +74,9 @@ app.get("/api/health", (req, res) => {
   });
 });
 
+// Modo solo lectura por mensualidad impaga (antes de todas las rutas)
+app.use("/api", readOnlyGuard);
+
 // ✅ UNA SOLA VEZ
 app.use("/api/auth", authLimiter, authRoutes);
 
@@ -94,6 +99,7 @@ app.use("/api/accounts", accountRoutes);
 app.use("/api/sales", saleRoutes);
 app.use("/api/catalog", catalogRoutes);
 app.use("/api/quotes", quoteRoutes);
+app.use("/api/billing", billingRoutes);
 
 
 app.get("/api/user/me", authMiddleware, async (req, res) => {
