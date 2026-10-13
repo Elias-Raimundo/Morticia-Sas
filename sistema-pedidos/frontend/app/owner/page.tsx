@@ -63,6 +63,7 @@ export default function OwnerPage() {
   const currentPaid = current ? months.some((m) => m.period === current.period && m.paid) : false;
 
   return (
+    <div className="min-h-screen bg-gray-50">
     <div className="mx-auto max-w-lg space-y-4 p-4">
       <h1 className="text-xl font-bold text-gray-900">Mensualidad del sistema</h1>
 
@@ -120,6 +121,7 @@ export default function OwnerPage() {
       )}
 
       {error && <div className="text-sm text-red-600">{error}</div>}
+    </div>
     </div>
   );
 }
