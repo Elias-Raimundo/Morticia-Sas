@@ -20,7 +20,7 @@ export const getAllProductsAdmin = async (req, res, next) => {
 
 export const createProduct = async (req, res, next) => {
   try {
-    const product = await productService.createProduct(req.body);
+    const product = await productService.createProduct(req.body, req.user.id);
     res.status(201).json(product);
   } catch (e) {
     next(e);
@@ -36,14 +36,20 @@ export const updateProduct = async (req, res, next) => {
   }
 };
 
+
 export const deleteProduct = async (req, res, next) => {
   try {
-    const result = await productService.deleteProduct(req.params.id);
+    const result = await productService.deleteProduct(
+      req.params.id,
+      req.user.id
+    );
+
     res.json(result);
   } catch (e) {
     next(e);
   }
 };
+
 
 export const uploadProductImage = async (req, res, next) => {
   try {

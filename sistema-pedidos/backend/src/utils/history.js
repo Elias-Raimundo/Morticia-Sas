@@ -4,12 +4,19 @@
 
 // Origen del cambio, deducido del motivo (sirve para filtrar en la auditoría)
 const sourceFromReason = (reason = "") => {
-  if (reason.startsWith("Edición manual")) return "manual";
+  if (
+    reason.startsWith("Edición manual") ||
+    reason.startsWith("Cambio de estado manual")
+  ) return "manual";
+
   if (reason.startsWith("Compra")) return "compra";
   if (reason.startsWith("Cancelación")) return "cancelacion";
   if (reason.startsWith("Edición pedido")) return "edicion_pedido";
   if (reason.startsWith("Pedido")) return "pedido";
   if (reason.startsWith("Venta")) return "venta";
+  if (reason.startsWith("Alta de producto")) return "alta";
+  if (reason.startsWith("Eliminación")) return "baja";
+
   return "otro";
 };
 

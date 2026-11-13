@@ -7,7 +7,7 @@ type Entry = {
   id: number;
   productId: number;
   productName: string;
-  field: "price" | "internalPrice" | "stock";
+  field: "price" | "internalPrice" | "stock" | "active";
   oldValue: number | null;
   newValue: number | null;
   reason: string;
@@ -20,6 +20,7 @@ const FIELD_LABELS: Record<Entry["field"], string> = {
   price: "Venta",
   internalPrice: "Costo",
   stock: "Stock",
+  active: "Estado",
 };
 
 const SOURCE_LABELS: Record<string, string> = {
@@ -29,15 +30,24 @@ const SOURCE_LABELS: Record<string, string> = {
   cancelacion: "Cancelación",
   edicion_pedido: "Edición de pedido",
   venta: "Venta al público",
+  alta: "Alta de producto",
+  baja: "Baja de producto",
   otro: "Otro",
 };
 
-const fmt = (field: Entry["field"], n: number | null) =>
-  n === null || n === undefined
-    ? "—"
-    : field === "stock"
-      ? Number(n).toLocaleString("es-AR")
-      : `$${Number(n).toLocaleString("es-AR", { maximumFractionDigits: 2 })}`;
+const fmt = (field: Entry["field"], n: number | null) => {
+  if (n === null || n === undefined) return "—";
+
+  if (field === "active") {
+    return Number(n) === 1 ? "Activo" : "Inactivo";
+  }
+
+  return field === "stock"
+    ? Number(n).toLocaleString("es-AR")
+    : `$${Number(n).toLocaleString("es-AR", {
+        maximumFractionDigits: 2,
+      })}`;
+};
 
 const fmtDate = (iso: string) =>
   new Date(iso).toLocaleString("es-AR", {
@@ -95,9 +105,9 @@ export default function AuditoriaPage() {
         <div className="overflow-hidden rounded-2xl border border-amber-200 bg-white shadow-sm">
           <div className="h-2 bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-500" />
           <div className="p-5 md:p-6">
-            <h1 className="text-2xl font-bold text-gray-900 md:text-3xl">Auditoría de precios y stock</h1>
+            <h1 className="text-2xl font-bold text-gray-900 md:text-3xl">Auditoría de productos</h1>
             <p className="mt-1 text-sm text-gray-600">
-              Historial completo de cambios de precio de venta, costo y stock de todos los productos
+              Historial de cambios de precios, costos, stock y estado de los productos.
             </p>
           </div>
         </div>
@@ -120,6 +130,7 @@ export default function AuditoriaPage() {
               <option value="price">Venta</option>
               <option value="internalPrice">Costo</option>
               <option value="stock">Stock</option>
+              <option value="active">Estado</option>
             </select>
           </div>
           <div>

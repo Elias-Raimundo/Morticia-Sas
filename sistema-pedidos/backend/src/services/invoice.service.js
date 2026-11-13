@@ -86,7 +86,7 @@ export const createInvoice = async (data) => {
         data: {
           stock: { increment: it.quantity },
           internalPrice: it.unitCost,
-          ...(it.salePrice ? { price: it.salePrice } : {}),
+          ...(it.salePrice != null ? { price: it.salePrice } : {}),
         },
       });
 
