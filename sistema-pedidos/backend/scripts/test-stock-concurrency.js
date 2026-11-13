@@ -103,6 +103,33 @@ const run = async () => {
       throw new Error(`Hay ${invalidEntries.length} registros con valores anteriores/posteriores incorrectos`);
     }
 
+    // Los registros deben poder ordenarse como una secuencia continua desde
+    // el stock inicial hasta el final, aunque varias transacciones tengan la
+    // misma marca de tiempo.
+    const graph = new Map();
+    for (const entry of history) {
+      const from = Number(entry.oldValue);
+      const to = Number(entry.newValue);
+      if (!graph.has(from)) graph.set(from, []);
+      graph.get(from).push(to);
+    }
+
+    const stack = [1000];
+    const path = [];
+    while (stack.length) {
+      const current = stack[stack.length - 1];
+      const edges = graph.get(current);
+      if (edges?.length) {
+        stack.push(edges.pop());
+      } else {
+        path.push(stack.pop());
+      }
+    }
+
+    if (path.length !== history.length + 1 || path[0] !== 1020 || path[path.length - 1] !== 1000) {
+      throw new Error("Los valores anteriores/posteriores del historial no forman una secuencia continua");
+    }
+
     const netHistoryChange = history.reduce(
       (sum, entry) => sum + Number(entry.newValue) - Number(entry.oldValue),
       0,
