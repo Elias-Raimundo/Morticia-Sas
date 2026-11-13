@@ -36,10 +36,21 @@ export const getProductsStatsService = async ({ range, from, to }) => {
       in: ["confirmed", "delivered"],
     },
     ...(startDate && endDate && {
-      confirmedAt: {
-        gte: startDate,
-        lte: endDate,
-      },
+      OR: [
+        {
+          confirmedAt: {
+            gte: startDate,
+            lte: endDate,
+          },
+        },
+        {
+          confirmedAt: null,
+          createdAt: {
+            gte: startDate,
+            lte: endDate,
+          },
+        },
+      ],
     }),
   };
 
