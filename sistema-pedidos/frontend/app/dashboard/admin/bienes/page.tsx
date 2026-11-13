@@ -162,7 +162,7 @@ export default function BienesPage() {
   // valor legible de un campo del historial
   const historyValue = (field: string, v: any) => {
     if (v === null || v === undefined || v === "") return "—";
-    if (field === "totalCost" || field === "paidTotal") return formatMoney(Number(v));
+    if (field === "totalCost" || field === "paidTotal" || field === "amount") return formatMoney(Number(v));
     if (field === "acquiredAt") return formatDay(String(v));
     if (field === "clientId") return clients.find((c) => c.id === Number(v))?.name ?? `Cliente #${v}`;
     return String(v);
