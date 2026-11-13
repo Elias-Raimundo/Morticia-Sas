@@ -33,7 +33,7 @@ type AssetHistoryEntry = {
   id: number;
   assetId: number;
   assetName: string;
-  action: "edit" | "delete";
+  action: "edit" | "delete" | "payment";
   changes: Record<string, any> | null;
   createdAt: string;
 };
@@ -48,6 +48,10 @@ const FIELD_LABELS: Record<string, string> = {
   installmentsCount: "Cuotas",
   acquiredAt: "Fecha de adquisición",
   paidTotal: "Pagado hasta el momento",
+  amount: "Monto del pago",
+  method: "Forma de pago",
+  date: "Fecha del pago",
+  notes: "Observaciones",
 };
 
 const formatMoney = (n: number) =>
@@ -505,7 +509,7 @@ export default function BienesPage() {
               <h2 className="font-semibold text-gray-900">
                 Historial de cambios{historyAsset ? `: ${historyAsset.name}` : ""}
               </h2>
-              <p className="text-sm text-gray-600">Ediciones y eliminaciones, de la más reciente a la más antigua</p>
+              <p className="text-sm text-gray-600">Ediciones, pagos y eliminaciones, de la más reciente a la más antigua</p>
             </div>
             {historyAsset && (
               <button
@@ -530,10 +534,12 @@ export default function BienesPage() {
                       className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${
                         h.action === "delete"
                           ? "bg-red-100 text-red-700"
-                          : "bg-amber-100 text-amber-800"
+                          : h.action === "payment"
+                            ? "bg-emerald-100 text-emerald-800"
+                            : "bg-amber-100 text-amber-800"
                       }`}
                     >
-                      {h.action === "delete" ? "Eliminado" : "Editado"}
+                      {h.action === "delete" ? "Eliminado" : h.action === "payment" ? "Pago registrado" : "Editado"}
                     </span>
                     <span className="font-semibold text-gray-900">{h.assetName}</span>
                     <span className="text-xs text-gray-500">
@@ -565,7 +571,7 @@ export default function BienesPage() {
                         .map(([field, v]) => (
                           <li key={field}>
                             <span className="font-medium">{FIELD_LABELS[field] ?? field}:</span>{" "}
-                            {historyValue(field, v)}
+                            {field === "date" ? formatDate(String(v)) : historyValue(field, v)}
                           </li>
                         ))}
                     </ul>
