@@ -254,10 +254,15 @@ export default function CreateOrderForm({ onSent }: { onSent?: () => void }) {
       }
 
       const minutes = paymentInfo?.editWindowMinutes ?? 120;
-      const windowText =
-        minutes % 60 === 0
-          ? `${minutes / 60} ${minutes / 60 === 1 ? "hora" : "horas"}`
-          : `${minutes} minutos`;
+      const hours = Math.floor(minutes / 60);
+      const remainingMinutes = minutes % 60;
+
+      const windowText = [
+        hours > 0 ? `${hours} ${hours === 1 ? "hora" : "horas"}` : "",
+        remainingMinutes > 0 ? `${remainingMinutes} min` : "",
+      ]
+        .filter(Boolean)
+        .join(" ");
       toast.success(`Pedido enviado ✅ Podés modificarlo durante las próximas ${windowText} desde tu historial.`);
       setComments("");
       setDeliveryDate("");
