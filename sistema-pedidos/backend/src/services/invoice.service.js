@@ -1,6 +1,6 @@
 import prisma from "../prisma.js";
 import { AppError } from "../utils/AppError.js";
-import { logProductChange } from "../utils/history.js";
+import { logProductChange, logStockMovement } from "../utils/history.js";
 
 export const listInvoicesByProvider = async (providerId) => {
   return prisma.invoice.findMany({
@@ -90,8 +90,17 @@ export const createInvoice = async (data) => {
         },
       });
 
-      // historial de stock, costo y (si cambió) precio de venta
-      for (const field of ["stock", "internalPrice", "price"]) {
+      // El stock se registra leyendo el valor posterior al incremento atómico.
+      // Así no dependemos de un "before" que pudo quedar viejo por otra compra simultánea.
+      await logStockMovement(tx, {
+        productId: it.productId,
+        delta: it.quantity,
+        reason,
+        userId: data.userId,
+      });
+
+      // Los precios también quedan auditados si cambiaron.
+      for (const field of ["internalPrice", "price"]) {
         await logProductChange(tx, {
           productId: it.productId,
           productName: after.name,
