@@ -148,7 +148,25 @@ export const addPayment = async (id, { amount, method, date, notes }) => {
   const asset = await prisma.asset.findUnique({ where: { id: assetId } });
   if (!asset) throw new AppError("Bien no encontrado", 404);
 
-  return prisma.assetPayment.create({
-    data: { assetId, amount, method, date: toDateOrUndefined(date), notes },
+  return prisma.$transaction(async (tx) => {
+    const payment = await tx.assetPayment.create({
+      data: { assetId, amount, method, date: toDateOrUndefined(date), notes },
+    });
+
+    await tx.assetHistory.create({
+      data: {
+        assetId,
+        assetName: asset.name,
+        action: "payment",
+        changes: {
+          amount: payment.amount,
+          method: payment.method,
+          date: payment.date.toISOString(),
+          notes: payment.notes,
+        },
+      },
+    });
+
+    return payment;
   });
 };
