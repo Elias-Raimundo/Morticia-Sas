@@ -53,3 +53,16 @@ export const addPayment = async (req, res, next) => {
     next(error);
   }
 };
+
+
+export const listAssetHistory = async (req, res, next) => {
+  try {
+    const history = await assetService.listAssetHistory({
+      assetId: req.query.assetId,
+      limit: req.query.limit,
+    });
+    res.json(history);
+  } catch (error) {
+    next(error);
+  }
+};

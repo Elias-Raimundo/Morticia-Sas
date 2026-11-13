@@ -17,6 +17,9 @@ router.get("/", assetController.listAssets);
 
 router.post("/", validate(createAssetSchema), assetController.createAsset);
 
+// Historial de ediciones y eliminaciones (va antes de /:assetId)
+router.get("/history", assetController.listAssetHistory);
+
 router.get(
   "/:assetId",
   validate(assetIdParamSchema, "params"),

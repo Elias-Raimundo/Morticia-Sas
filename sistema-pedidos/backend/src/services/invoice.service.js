@@ -1,5 +1,6 @@
 import prisma from "../prisma.js";
 import { AppError } from "../utils/AppError.js";
+import { logProductChange } from "../utils/history.js";
 
 export const listInvoicesByProvider = async (providerId) => {
   return prisma.invoice.findMany({
@@ -77,8 +78,10 @@ export const createInvoice = async (data) => {
     });
 
     // sube stock, actualiza precio costo, y precio de venta si se definió uno
+    const reason = `Compra factura ${number ? "N° " + number : "#" + invoice.id}`;
     for (const it of items) {
-      await tx.product.update({
+      const before = await tx.product.findUnique({ where: { id: it.productId } });
+      const after = await tx.product.update({
         where: { id: it.productId },
         data: {
           stock: { increment: it.quantity },
@@ -86,6 +89,19 @@ export const createInvoice = async (data) => {
           ...(it.salePrice ? { price: it.salePrice } : {}),
         },
       });
+
+      // historial de stock, costo y (si cambió) precio de venta
+      for (const field of ["stock", "internalPrice", "price"]) {
+        await logProductChange(tx, {
+          productId: it.productId,
+          productName: after.name,
+          field,
+          oldValue: before?.[field],
+          newValue: after[field],
+          reason,
+          userId: data.userId,
+        });
+      }
     }
 
     // la factura siempre suma deuda al proveedor

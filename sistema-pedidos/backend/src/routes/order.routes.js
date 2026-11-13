@@ -2,7 +2,7 @@ import express from "express";
 import { authMiddleware, requireRole } from "../middleware/auth.middleware.js";
 import * as orderController from "../controllers/order.controller.js";
 import { validate } from "../middleware/validate.middleware.js";
-import { orderIdParamSchema, createOrderItemSchema } from "../validators/order.validator.js";
+import { orderIdParamSchema, createOrderItemSchema, editOrderSchema } from "../validators/order.validator.js";
 
 const router = express.Router();
 
@@ -21,6 +21,14 @@ router.get(
   authMiddleware,
   requireRole("client"),
   orderController.getMyDraft
+);
+
+// 🔹 Formas de pago disponibles (alias de transferencia, QR) y ventana de edición
+router.get(
+  "/payment-info",
+  authMiddleware,
+  requireRole("client"),
+  orderController.getPaymentInfo
 );
 
 // 🔹 Ver mis órdenes
@@ -60,6 +68,17 @@ router.patch(
   requireRole("client"),
   validate(orderIdParamSchema, "params"),
   orderController.sendOrder
+);
+
+
+// 🔹 Modificar un pedido ya confirmado (solo dentro de la ventana de tiempo)
+router.patch(
+  "/:orderId/edit",
+  authMiddleware,
+  requireRole("client"),
+  validate(orderIdParamSchema, "params"),
+  validate(editOrderSchema),
+  orderController.editConfirmedOrder
 );
 
 

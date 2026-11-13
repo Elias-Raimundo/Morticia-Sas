@@ -1,4 +1,5 @@
 import * as orderService from "../services/order.service.js";
+import { getPaymentInfo as getPaymentInfoData } from "../utils/payment.js";
 
 export const createDraftOrder = async (req, res, next) => {
   try {
@@ -83,7 +84,7 @@ export const sendOrder = async (req, res, next) => {
 
 export const cancelOrder = async (req, res, next) => {
   try {
-    await orderService.cancelOrder(req.params.orderId);
+    await orderService.cancelOrder(req.params.orderId, req.user.id);
 
     res.json({ message: "Orden cancelada correctamente" });
   } catch (error) {
@@ -181,5 +182,28 @@ export const deleteDraftOrder = async (req, res, next) => {
     res.json({ message: "Pedido eliminado" });
   } catch (e) {
     next(e);
+  }
+};
+
+// Cliente: modificar un pedido confirmado dentro de la ventana de tiempo
+export const editConfirmedOrder = async (req, res, next) => {
+  try {
+    const order = await orderService.editConfirmedOrder(
+      req.params.orderId,
+      req.user.id,
+      req.body
+    );
+    res.json(order);
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Formas de pago disponibles (alias, QR) y minutos para editar un pedido
+export const getPaymentInfo = async (req, res, next) => {
+  try {
+    res.json(await getPaymentInfoData());
+  } catch (error) {
+    next(error);
   }
 };

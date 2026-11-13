@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { apiFetch } from "@/lib/api";
+import PurchasesSummary from "@/components/summary/PurchasesSummary";
 import {
   ResponsiveContainer,
   LineChart,
@@ -26,6 +27,13 @@ type SalesByDay = {
 };
 
 type StatsResponse = {
+  byPaymentMethod?: {
+    efectivo: number;
+    transferencia: number;
+    qr: number;
+    otros: number;
+    sinEspecificar: number;
+  };
   products: ProductStat[];
   salesByDay: SalesByDay[];
   ordersCount: number;
@@ -33,7 +41,7 @@ type StatsResponse = {
   averageTicket: number;
 };
 
-export default function AdminResumenPage() {
+function SalesSummary() {
   const [range, setRange] = useState("month");
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
@@ -205,6 +213,42 @@ const formatLocalDateFull = (value: string) => {
           </div>
         </div>
 
+        {/* Cobros por forma de pago */}
+        {data?.byPaymentMethod && (
+          <div className="rounded-2xl border border-gray-200 bg-white shadow-sm p-5 space-y-4">
+            <div>
+              <h2 className="font-semibold text-gray-900">Por forma de pago</h2>
+              <p className="text-sm text-gray-600">
+                Ventas al público: cómo se cobró. Pedidos de clientes: la forma que eligió el cliente.
+              </p>
+            </div>
+
+            <div className="grid gap-4 md:grid-cols-3">
+              {[
+                { label: "Efectivo", value: data.byPaymentMethod.efectivo },
+                { label: "Transferencia", value: data.byPaymentMethod.transferencia },
+                { label: "QR", value: data.byPaymentMethod.qr },
+              ].map((c) => (
+                <div key={c.label} className="rounded-2xl border border-amber-200 bg-amber-50/60 p-4">
+                  <p className="text-sm text-gray-600">{c.label}</p>
+                  <p className="mt-1 text-2xl font-bold text-gray-900">
+                    ${Number(c.value).toLocaleString("es-AR", { maximumFractionDigits: 0 })}
+                  </p>
+                </div>
+              ))}
+            </div>
+
+            <div className="flex flex-wrap gap-2 text-sm">
+              <span className="rounded-full bg-gray-100 px-3 py-1 font-medium text-gray-700">
+                Otras formas: ${Number(data.byPaymentMethod.otros).toLocaleString("es-AR", { maximumFractionDigits: 0 })}
+              </span>
+              <span className="rounded-full bg-gray-100 px-3 py-1 font-medium text-gray-700">
+                Sin especificar / a cuenta: ${Number(data.byPaymentMethod.sinEspecificar).toLocaleString("es-AR", { maximumFractionDigits: 0 })}
+              </span>
+            </div>
+          </div>
+        )}
+
         {/* Productos vendidos */}
         <div className="rounded-2xl border border-gray-200 bg-white shadow-sm overflow-hidden">
           <div className="px-5 py-4 border-b bg-gray-50">
@@ -337,6 +381,35 @@ const formatLocalDateFull = (value: string) => {
           )}
         </div>
       </div>
+    </div>
+  );
+}
+
+// Pestañas: Resumen de ventas (el de siempre) y Resumen de compras (facturas de proveedores)
+export default function AdminResumenPage() {
+  const [tab, setTab] = useState<"ventas" | "compras">("ventas");
+
+  const tabClass = (active: boolean) =>
+    `rounded-xl px-4 py-2 text-sm font-semibold transition ${
+      active
+        ? "bg-amber-500 text-gray-950 shadow-sm"
+        : "border border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
+    }`;
+
+  return (
+    <div>
+      <div className="bg-amber-50 px-4 pt-4 md:px-6 md:pt-6">
+        <div className="mx-auto flex max-w-6xl gap-2">
+          <button type="button" onClick={() => setTab("ventas")} className={tabClass(tab === "ventas")}>
+            Ventas
+          </button>
+          <button type="button" onClick={() => setTab("compras")} className={tabClass(tab === "compras")}>
+            Compras
+          </button>
+        </div>
+      </div>
+
+      {tab === "ventas" ? <SalesSummary /> : <PurchasesSummary />}
     </div>
   );
 }

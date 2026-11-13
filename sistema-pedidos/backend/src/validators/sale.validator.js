@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-export const PAYMENT_METHODS = ["efectivo", "transferencia", "tarjeta", "cheque", "cheque electrónico", "otro"];
+export const PAYMENT_METHODS = ["efectivo", "transferencia", "qr", "tarjeta", "cheque", "cheque electrónico", "otro"];
 
 const optionalText = z.string().max(200, "Texto demasiado largo").nullable().optional();
 

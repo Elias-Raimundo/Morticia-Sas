@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { apiFetch } from "@/lib/api";
+import ProductHistoryModal from "@/components/products/ProductHistoryModal";
 import { toast } from "sonner";
 
 type Product = {
@@ -76,6 +77,7 @@ export default function AdminProductsPage() {
     activeProductsCount: number;
   } | null>(null);
 
+  const [historyProduct, setHistoryProduct] = useState<{ id: number; name: string } | null>(null);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editForm, setEditForm] = useState<EditForm>({
     name: "",
@@ -1052,6 +1054,9 @@ return (
                             }}
                           />
                         </label>
+                        <button className="px-3 py-2 rounded-lg border border-gray-300 text-gray-700 text-xs hover:bg-gray-50" onClick={() => setHistoryProduct({ id: p.id, name: p.name })}>
+                          Historial
+                        </button>
                         <button className="px-3 py-2 rounded-lg border border-amber-300 text-amber-700 text-xs hover:bg-amber-50" onClick={() => startEdit(p)}>
                           Editar
                         </button>
@@ -1250,6 +1255,9 @@ return (
                               }}
                             />
                           </label>
+                          <button className="flex items-center justify-center h-7 w-7 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50" title="Historial de precios y stock" onClick={() => setHistoryProduct({ id: p.id, name: p.name })}>
+                            🕘
+                          </button>
                           <button className="px-2 py-1 rounded-lg border border-amber-300 text-amber-700 text-xs hover:bg-amber-50" onClick={() => startEdit(p)}>
                             Editar
                           </button>
@@ -1267,6 +1275,7 @@ return (
         </>
       )}
     </div>
+    <ProductHistoryModal product={historyProduct} onClose={() => setHistoryProduct(null)} />
   </div>
 );
 }

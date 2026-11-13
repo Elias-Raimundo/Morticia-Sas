@@ -1,6 +1,7 @@
 import prisma from "../prisma.js";
 import { AppError } from "../utils/AppError.js";
 import { supabase } from "../utils/supabaseClient.js";
+import { logProductChange } from "../utils/history.js";
 
 export const listActiveProducts = async () => {
   return prisma.product.findMany({
@@ -63,7 +64,7 @@ export const createProduct = async ({ name, unit, price, internalPrice, stock, c
   });
 };
 
-export const updateProduct = async (id, data) => {
+export const updateProduct = async (id, data, userId) => {
   const productId = Number(id);
   if (Number.isNaN(productId)) throw new AppError("ID inválido", 400);
 
@@ -106,10 +107,46 @@ export const updateProduct = async (id, data) => {
     }
   }
 
-  return prisma.product.update({
-    where: { id: productId },
-    data: payload,
-    include: { category: true },
+  // El cambio y su historial se guardan juntos en una transacción
+  return prisma.$transaction(async (tx) => {
+    const updated = await tx.product.update({
+      where: { id: productId },
+      data: payload,
+      include: { category: true },
+    });
+
+    for (const field of ["price", "internalPrice", "stock"]) {
+      if (field in payload) {
+        await logProductChange(tx, {
+          productId,
+          productName: updated.name,
+          field,
+          oldValue: exists[field],
+          newValue: updated[field],
+          reason: "Edición manual",
+          userId,
+        });
+      }
+    }
+
+    return updated;
+  });
+};
+
+// Historial de precios y stock de un producto (más nuevo primero)
+export const getProductHistory = async (id, { field, limit } = {}) => {
+  const productId = Number(id);
+  if (Number.isNaN(productId)) throw new AppError("ID inválido", 400);
+
+  const take = Math.min(Math.max(Number(limit) || 200, 1), 500);
+
+  return prisma.productHistory.findMany({
+    where: {
+      productId,
+      ...(field && ["price", "internalPrice", "stock"].includes(field) ? { field } : {}),
+    },
+    orderBy: { createdAt: "desc" },
+    take,
   });
 };
 
@@ -205,5 +242,37 @@ export const uploadProductImage = async (id, file) => {
     where: { id: productId },
     data: { imageUrl: publicUrlData.publicUrl },
     include: { category: true },
+  });
+};
+
+// Auditoría global de precios y stock (todos los productos), con filtros
+export const getAllProductHistory = async ({ search, field, source, from, to, limit } = {}) => {
+  const take = Math.min(Math.max(Number(limit) || 300, 1), 1000);
+
+  const where = {};
+  if (search && String(search).trim()) {
+    where.productName = { contains: String(search).trim(), mode: "insensitive" };
+  }
+  if (field && ["price", "internalPrice", "stock"].includes(field)) where.field = field;
+  if (source && String(source).trim()) where.source = String(source);
+
+  if (from || to) {
+    where.createdAt = {};
+    if (from) {
+      const d = new Date(`${from}T00:00:00`);
+      if (Number.isNaN(d.getTime())) throw new AppError("Fecha 'desde' inválida", 400);
+      where.createdAt.gte = d;
+    }
+    if (to) {
+      const d = new Date(`${to}T23:59:59`);
+      if (Number.isNaN(d.getTime())) throw new AppError("Fecha 'hasta' inválida", 400);
+      where.createdAt.lte = d;
+    }
+  }
+
+  return prisma.productHistory.findMany({
+    where,
+    orderBy: { createdAt: "desc" },
+    take,
   });
 };

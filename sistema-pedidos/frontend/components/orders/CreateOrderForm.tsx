@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { apiFetch } from "@/lib/api";
 import { toast } from "sonner";
+import PaymentMethodPicker, { PaymentInfo } from "./PaymentMethodPicker";
 
 type Product = {
   id: number;
@@ -33,6 +34,7 @@ type DraftOrder = {
   total: number;
   deliveryDate: string | null;
   comments: string | null;
+  clientPaymentMethod?: string | null;
   items: DraftItem[];
 };
 
@@ -68,6 +70,8 @@ export default function CreateOrderForm({ onSent }: { onSent?: () => void }) {
 
   const [comments, setComments] = useState("");
   const [deliveryDate, setDeliveryDate] = useState<string>("");
+  const [paymentMethod, setPaymentMethod] = useState<string>("");
+  const [paymentInfo, setPaymentInfo] = useState<PaymentInfo | null>(null);
   const [categoryFilter, setCategoryFilter] = useState("");
 
   const [zoomedImage, setZoomedImage] = useState<string | null>(null);
@@ -130,6 +134,13 @@ export default function CreateOrderForm({ onSent }: { onSent?: () => void }) {
       setProducts(Array.isArray(prodData) ? prodData : []);
       setComments(draftData.comments ?? "");
       setDeliveryDate(draftData.deliveryDate ? String(draftData.deliveryDate).slice(0, 10) : "");
+      setPaymentMethod(draftData.clientPaymentMethod ?? "");
+
+      // alias / QR / minutos de edición (si falla, el selector usa opciones básicas)
+      apiFetch("/api/orders/payment-info")
+        .then((r) => (r.ok ? r.json() : null))
+        .then((info) => info && setPaymentInfo(info))
+        .catch(() => {});
     } catch (e: any) {
       toast.error(e?.message || "Error cargando datos");
     } finally {
@@ -205,6 +216,7 @@ export default function CreateOrderForm({ onSent }: { onSent?: () => void }) {
         body: JSON.stringify({
           comments,
           deliveryDate: deliveryDate ? `${deliveryDate}T00:00:00` : null,
+          clientPaymentMethod: paymentMethod || null,
         }),
       });
 
@@ -224,6 +236,7 @@ export default function CreateOrderForm({ onSent }: { onSent?: () => void }) {
   const sendOrder = async () => {
     if (!draft) return;
     if (!draft.items?.length) return toast.warning("El pedido está vacío.");
+    if (!paymentMethod) return toast.warning("Elegí una forma de pago.");
 
     setBusy(true);
     try {
@@ -240,9 +253,15 @@ export default function CreateOrderForm({ onSent }: { onSent?: () => void }) {
         return;
       }
 
-      toast.success("Pedido enviado ✅");
+      const minutes = paymentInfo?.editWindowMinutes ?? 120;
+      const windowText =
+        minutes % 60 === 0
+          ? `${minutes / 60} ${minutes / 60 === 1 ? "hora" : "horas"}`
+          : `${minutes} minutos`;
+      toast.success(`Pedido enviado ✅ Podés modificarlo durante las próximas ${windowText} desde tu historial.`);
       setComments("");
       setDeliveryDate("");
+      setPaymentMethod("");
       await load();
     } catch (error) {
       console.error(error);
@@ -566,6 +585,16 @@ export default function CreateOrderForm({ onSent }: { onSent?: () => void }) {
               onChange={(e) => setComments(e.target.value)}
               disabled={busy}
               placeholder="Ej: entregar por la mañana..."
+            />
+          </div>
+
+          {/* Forma de pago */}
+          <div className="mt-4">
+            <PaymentMethodPicker
+              value={paymentMethod}
+              onChange={setPaymentMethod}
+              info={paymentInfo}
+              disabled={busy}
             />
           </div>
 

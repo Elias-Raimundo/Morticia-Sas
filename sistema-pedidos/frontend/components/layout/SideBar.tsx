@@ -23,6 +23,8 @@ export default function Sidebar() {
         { href: "/dashboard/admin/proveedores", label: "Proveedores" },
         { href: "/dashboard/admin/gastos", label: "Gastos" },
         { href: "/dashboard/admin/bienes", label: "Bienes" },
+        { href: "/dashboard/admin/auditoria", label: "Auditoría" },
+        { href: "/dashboard/admin/configuracion", label: "Configuración" },
       ]
     : [
         { href: "/dashboard", label: "Crear pedido" },

@@ -68,6 +68,9 @@ model Order {
   confirmedAt  DateTime?
   isCounterSale Boolean    @default(false)  // venta al público (mostrador), con remito
   paymentMethod String?                   // forma de cobro en el momento; null = a cuenta
+  clientPaymentMethod String?             // forma de pago que eligió el cliente al hacer el pedido: "transferencia" | "efectivo" | "qr"
+  editedAt     DateTime?                  // última vez que el cliente modificó el pedido ya confirmado
+  editCount    Int         @default(0)
   user         User        @relation(fields: [userId], references: [id])
   items        OrderItem[]
 
@@ -306,6 +309,7 @@ model Asset {
   acquiredAt  DateTime       @default(now())
   createdAt   DateTime       @default(now())
   payments    AssetPayment[]
+  history     AssetHistory[]
 
   @@index([active])
   @@index([clientId])
@@ -322,6 +326,47 @@ model AssetPayment {
   asset   Asset    @relation(fields: [assetId], references: [id])
 
   @@index([assetId])
+}
+
+// Historial de cambios de un bien: una fila por edición o eliminación. Guarda el nombre
+// del bien y un detalle de qué cambió (antes -> después) para que se pueda consultar
+// aunque el bien ya esté eliminado.
+model AssetHistory {
+  id        Int      @id @default(autoincrement())
+  assetId   Int
+  assetName String
+  action    String   // "edit" | "delete"
+  changes   Json?    // edit: { campo: { from, to } } · delete: foto del bien al momento de eliminarlo
+  createdAt DateTime @default(now())
+  asset     Asset    @relation(fields: [assetId], references: [id])
+
+  @@index([assetId])
+  @@index([createdAt])
+}
+
+// Historial de precios y stock de un producto. Sin relación a propósito: si el
+// producto se elimina, el historial queda igual (con el nombre guardado).
+model ProductHistory {
+  id          Int      @id @default(autoincrement())
+  productId   Int
+  productName String
+  field       String   // "price" | "internalPrice" | "stock"
+  oldValue    Float?
+  newValue    Float?
+  reason      String   // ej: "Edición manual", "Compra factura N° 123", "Pedido #45"
+  source      String?  // "manual" | "compra" | "pedido" | "cancelacion" | "edicion_pedido" | "venta"
+  userName    String?  // quién hizo el cambio (se guarda el nombre para que no se pierda)
+  createdAt   DateTime @default(now())
+
+  @@index([productId])
+  @@index([createdAt])
+}
+
+// Configuración simple clave/valor editable desde el admin (ej: alias y QR de pago)
+model Setting {
+  key       String   @id
+  value     String
+  updatedAt DateTime @updatedAt
 }
 
 // ============ Mensualidad del sistema ============

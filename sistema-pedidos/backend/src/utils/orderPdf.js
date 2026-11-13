@@ -110,6 +110,15 @@ export function buildOrderPdf(order) {
         .text(`DNI/CUIL: ${customerTaxId(user?.dniCuil) ?? "—"}`)
         .text(`Dirección: ${user?.address ?? "—"}`);
 
+      if (order?.clientPaymentMethod) {
+        const payLabels = { transferencia: "Transferencia", efectivo: "Efectivo", qr: "QR" };
+        doc.text(`Forma de pago: ${payLabels[order.clientPaymentMethod] ?? order.clientPaymentMethod}`);
+      }
+
+      if (order?.editedAt) {
+        doc.text(`Pedido modificado por el cliente: ${formatDateTimeAR(order.editedAt)}`);
+      }
+
       if (order?.comments) {
         doc.moveDown(0.6);
         doc.text(`Comentarios: ${order.comments}`);

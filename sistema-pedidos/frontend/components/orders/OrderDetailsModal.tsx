@@ -3,6 +3,9 @@
 import { useEffect, useMemo, useState, useRef } from "react";
 import { apiFetch } from "@/lib/api";
 import { toast } from "sonner";
+import { formatCountdown, useCountdown } from "@/lib/useCountdown";
+import EditConfirmedOrderModal from "./EditConfirmedOrderModal";
+import { PAYMENT_LABELS } from "./PaymentMethodPicker";
 
 type Item = {
   id: number;
@@ -20,6 +23,9 @@ type Order = {
   createdAt?: string | null;
   deliveryDate?: string | null;
   comments?: string | null;
+  clientPaymentMethod?: string | null;
+  editedAt?: string | null;
+  editableUntil?: string | null;
   user?: { 
     name?: string;
     lastName?: string; 
@@ -45,6 +51,11 @@ export default function OrderDetailsModal({
   const [order, setOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(false);
   const [downloading, setDownloading]=useState(false);
+  const [editOpen, setEditOpen] = useState(false);
+
+  // cuenta regresiva de la ventana para modificar un pedido confirmado (solo cliente)
+  const editSeconds = useCountdown(isAdmin ? null : order?.editableUntil);
+  const canEditConfirmed = !isAdmin && order?.status === "confirmed" && editSeconds > 0;
 
   const inputRefs = useRef<Record<number, HTMLInputElement | null>>({});
 
@@ -270,7 +281,39 @@ export default function OrderDetailsModal({
                     Podés editar porque está en <b>draft</b>
                   </span>
                 )}
+
+                {canEditConfirmed && (
+                  <button
+                    type="button"
+                    onClick={() => setEditOpen(true)}
+                    className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-800 hover:bg-amber-100"
+                  >
+                    ✏️ Modificar pedido · {formatCountdown(editSeconds)}
+                  </button>
+                )}
               </div>
+
+              {(order.clientPaymentMethod || order.editedAt) && (
+                <div className="mb-4 space-y-1 text-sm text-gray-800">
+                  {order.clientPaymentMethod && (
+                    <div>
+                      <b>Forma de pago:</b>{" "}
+                      {PAYMENT_LABELS[order.clientPaymentMethod] ?? order.clientPaymentMethod}
+                    </div>
+                  )}
+                  {order.editedAt && (
+                    <div className="text-xs text-amber-700">
+                      Modificado por el cliente el{" "}
+                      {new Date(order.editedAt).toLocaleString("es-AR", {
+                        day: "2-digit",
+                        month: "2-digit",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
+                    </div>
+                  )}
+                </div>
+              )}
 
               <div className="border rounded-xl overflow-hidden">
                 <div className="grid grid-cols-12 bg-gray-100 p-3 text-xs font-semibold text-gray-700">
@@ -350,6 +393,12 @@ export default function OrderDetailsModal({
           )}
         </div>
       </div>
+      <EditConfirmedOrderModal
+        order={order}
+        open={editOpen}
+        onClose={() => setEditOpen(false)}
+        onSaved={fetchOrder}
+      />
     </div>
   );
 }
