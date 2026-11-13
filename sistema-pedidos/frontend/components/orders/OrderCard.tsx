@@ -3,6 +3,8 @@
 import { useState } from "react";
 import { apiFetch } from "@/lib/api";
 import { toast } from "sonner";
+import { formatCountdown, useCountdown } from "@/lib/useCountdown";
+import { PAYMENT_LABELS } from "./PaymentMethodPicker";
 type OrderStatus = "draft" | "confirmed" | "delivered" | "cancelled";
 
 interface OrderItem{
@@ -23,6 +25,9 @@ interface Order {
   createdAt?: string;
   confirmedAt?: string | null;
   total?: number;
+  clientPaymentMethod?: string | null;
+  editedAt?: string | null;
+  editableUntil?: string | null;
   user?:{
     name?: string;
     email?: string;
@@ -73,6 +78,9 @@ export default function OrderCard({
   const [loading, setLoading] = useState<null | "confirm" | "cancel" | "deliver" | "delete" >(null);
 
   const orderId = String(order.id);
+
+  // el cliente puede modificar el pedido confirmado durante unos minutos
+  const editSeconds = useCountdown(isAdmin ? null : order.editableUntil);
 
   const run = async (action: "confirm" | "cancel" | "deliver") => {
     try {
@@ -225,6 +233,29 @@ export default function OrderCard({
                   </div>
                 )}
               </div>
+            </div>
+          )}
+
+          {/* Forma de pago / modificado */}
+          {(order.clientPaymentMethod || order.editedAt) && (
+            <div className="flex flex-wrap items-center gap-2 text-xs">
+              {order.clientPaymentMethod && (
+                <span className="rounded-full border border-gray-200 bg-white px-2.5 py-1 font-medium text-gray-700">
+                  💳 {PAYMENT_LABELS[order.clientPaymentMethod] ?? order.clientPaymentMethod}
+                </span>
+              )}
+              {order.editedAt && (
+                <span className="rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 font-medium text-amber-800">
+                  Modificado
+                </span>
+              )}
+            </div>
+          )}
+
+          {/* Ventana para modificar (cliente) */}
+          {!isAdmin && order.status === "confirmed" && editSeconds > 0 && (
+            <div className="rounded-2xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+              ✏️ Podés modificar este pedido por {formatCountdown(editSeconds)} más. Tocá la tarjeta para editarlo.
             </div>
           )}
 

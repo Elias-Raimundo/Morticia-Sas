@@ -29,6 +29,31 @@ type Asset = {
   paidTotal: number;
 };
 
+type AssetHistoryEntry = {
+  id: number;
+  assetId: number;
+  assetName: string;
+  action: "edit" | "delete" | "payment";
+  changes: Record<string, any> | null;
+  createdAt: string;
+};
+
+const FIELD_LABELS: Record<string, string> = {
+  name: "Nombre",
+  description: "Descripción",
+  location: "Ubicación",
+  category: "Categoría",
+  clientId: "Local (cliente)",
+  totalCost: "Costo total",
+  installmentsCount: "Cuotas",
+  acquiredAt: "Fecha de adquisición",
+  paidTotal: "Pagado hasta el momento",
+  amount: "Monto del pago",
+  method: "Forma de pago",
+  date: "Fecha del pago",
+  notes: "Observaciones",
+};
+
 const formatMoney = (n: number) =>
   new Intl.NumberFormat("es-AR", {
     style: "currency",
@@ -69,6 +94,12 @@ export default function BienesPage() {
   const [firstPaymentAmount, setFirstPaymentAmount] = useState("");
   const [firstPaymentMethod, setFirstPaymentMethod] = useState("efectivo");
 
+  // Historial de cambios (ediciones y eliminaciones)
+  const [showHistory, setShowHistory] = useState(false);
+  const [history, setHistory] = useState<AssetHistoryEntry[]>([]);
+  const [loadingHistory, setLoadingHistory] = useState(false);
+  const [historyAsset, setHistoryAsset] = useState<{ id: number; name: string } | null>(null);
+
   const [searchQuery, setSearchQuery] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("");
   const [localFilter, setLocalFilter] = useState("");
@@ -108,6 +139,34 @@ export default function BienesPage() {
   useEffect(() => {
     load();
   }, []);
+
+  const loadHistory = async (asset: { id: number; name: string } | null = historyAsset) => {
+    setLoadingHistory(true);
+    try {
+      const res = await apiFetch(`/api/assets/history${asset ? `?assetId=${asset.id}` : ""}`);
+      const data = await res.json().catch(() => []);
+      setHistory(Array.isArray(data) ? data : []);
+    } catch {
+      setHistory([]);
+    } finally {
+      setLoadingHistory(false);
+    }
+  };
+
+  const openHistory = (asset: { id: number; name: string } | null) => {
+    setHistoryAsset(asset);
+    setShowHistory(true);
+    loadHistory(asset);
+  };
+
+  // valor legible de un campo del historial
+  const historyValue = (field: string, v: any) => {
+    if (v === null || v === undefined || v === "") return "—";
+    if (field === "totalCost" || field === "paidTotal" || field === "amount") return formatMoney(Number(v));
+    if (field === "acquiredAt") return formatDay(String(v));
+    if (field === "clientId") return clients.find((c) => c.id === Number(v))?.name ?? `Cliente #${v}`;
+    return String(v);
+  };
 
   const resetForm = () => {
     setName("");
@@ -234,12 +293,14 @@ export default function BienesPage() {
       toast.success("Bien actualizado");
       setEditingId(null);
       load();
+      if (showHistory) loadHistory();
     } finally {
       setSavingEdit(false);
     }
   };
 
   const deactivateAsset = async (assetId: number) => {
+    if (!confirm("¿Eliminar este bien? Deja de verse en el listado, pero queda registrado en el historial.")) return;
     try {
       const res = await apiFetch(`/api/assets/${assetId}`, { method: "DELETE" });
       if (!res.ok) {
@@ -249,6 +310,7 @@ export default function BienesPage() {
       }
       toast.success("Bien eliminado");
       load();
+      if (showHistory) loadHistory();
     } catch (e) {
       console.error(e);
     }
@@ -298,12 +360,20 @@ export default function BienesPage() {
             <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 text-emerald-800 px-3 py-1 text-sm font-semibold">
               {filtersActive ? "Capital del filtro" : "Capital total"}: {formatMoney(totalCapital)}
             </span>
-            <button
-              onClick={() => setShowForm((v) => !v)}
-              className="rounded-xl bg-amber-500 px-4 py-2 text-sm font-semibold text-gray-950 hover:bg-amber-600"
-            >
-              {showForm ? "Cancelar" : "+ Nuevo bien"}
-            </button>
+            <div className="flex flex-wrap justify-end gap-2">
+              <button
+                onClick={() => (showHistory ? setShowHistory(false) : openHistory(null))}
+                className="rounded-xl border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50"
+              >
+                {showHistory ? "Ocultar historial" : "Historial"}
+              </button>
+              <button
+                onClick={() => setShowForm((v) => !v)}
+                className="rounded-xl bg-amber-500 px-4 py-2 text-sm font-semibold text-gray-950 hover:bg-amber-600"
+              >
+                {showForm ? "Cancelar" : "+ Nuevo bien"}
+              </button>
+            </div>
           </div>
         </div>
 
@@ -431,6 +501,87 @@ export default function BienesPage() {
           </div>
         )}
       </div>
+
+      {showHistory && (
+        <div className="rounded-2xl border border-gray-200 bg-white shadow-sm overflow-hidden">
+          <div className="p-4 md:p-5 border-b bg-gray-50 flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <h2 className="font-semibold text-gray-900">
+                Historial de cambios{historyAsset ? `: ${historyAsset.name}` : ""}
+              </h2>
+              <p className="text-sm text-gray-600">Ediciones, pagos y eliminaciones, de la más reciente a la más antigua</p>
+            </div>
+            {historyAsset && (
+              <button
+                onClick={() => openHistory(null)}
+                className="rounded-lg border border-gray-300 bg-white px-3 py-1 text-sm text-gray-700 hover:bg-gray-100"
+              >
+                Ver todos los bienes
+              </button>
+            )}
+          </div>
+
+          {loadingHistory ? (
+            <div className="p-5 text-sm text-gray-600">Cargando historial...</div>
+          ) : history.length === 0 ? (
+            <div className="p-5 text-sm text-gray-500">Todavía no hay cambios registrados.</div>
+          ) : (
+            <div className="divide-y max-h-[480px] overflow-y-auto">
+              {history.map((h) => (
+                <div key={h.id} className="p-4 text-sm space-y-2">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span
+                      className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${
+                        h.action === "delete"
+                          ? "bg-red-100 text-red-700"
+                          : h.action === "payment"
+                            ? "bg-emerald-100 text-emerald-800"
+                            : "bg-amber-100 text-amber-800"
+                      }`}
+                    >
+                      {h.action === "delete" ? "Eliminado" : h.action === "payment" ? "Pago registrado" : "Editado"}
+                    </span>
+                    <span className="font-semibold text-gray-900">{h.assetName}</span>
+                    <span className="text-xs text-gray-500">
+                      {new Date(h.createdAt).toLocaleString("es-AR", {
+                        day: "2-digit",
+                        month: "2-digit",
+                        year: "numeric",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
+                    </span>
+                  </div>
+
+                  {h.action === "edit" ? (
+                    <ul className="space-y-1 text-gray-700">
+                      {Object.entries(h.changes ?? {}).map(([field, ch]) => (
+                        <li key={field}>
+                          <span className="font-medium">{FIELD_LABELS[field] ?? field}:</span>{" "}
+                          <span className="text-gray-500 line-through">{historyValue(field, ch?.from)}</span>
+                          {" → "}
+                          <span className="font-medium text-gray-900">{historyValue(field, ch?.to)}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <ul className="grid grid-cols-1 gap-x-6 gap-y-1 text-gray-700 sm:grid-cols-2">
+                      {Object.entries(h.changes ?? {})
+                        .filter(([, v]) => v !== null && v !== undefined && v !== "")
+                        .map(([field, v]) => (
+                          <li key={field}>
+                            <span className="font-medium">{FIELD_LABELS[field] ?? field}:</span>{" "}
+                            {field === "date" ? formatDate(String(v)) : historyValue(field, v)}
+                          </li>
+                        ))}
+                    </ul>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {Object.keys(capitalPorUbicacion).length > 0 && (
         <div className="rounded-2xl border border-gray-200 bg-white shadow-sm overflow-hidden">
@@ -694,6 +845,12 @@ export default function BienesPage() {
                         + Registrar pago
                       </button>
                     )}
+                    <button
+                      onClick={() => openHistory({ id: a.id, name: a.name })}
+                      className="rounded-lg border border-gray-300 px-3 py-1 text-sm text-gray-700 hover:bg-gray-50"
+                    >
+                      Historial
+                    </button>
                     <button
                       onClick={() => startEdit(a)}
                       className="rounded-lg border border-gray-300 px-3 py-1 text-sm text-gray-700 hover:bg-gray-50"

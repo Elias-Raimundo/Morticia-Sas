@@ -4,6 +4,7 @@ import { AppError } from "../utils/AppError.js";
 import { hashPassword } from "../utils/hash.js";
 import { buildRemitoPdf, remitoNumber } from "../utils/remitoPdf.js";
 import { PLACEHOLDER_EMAIL_DOMAIN, PLACEHOLDER_ID_PREFIX } from "../utils/customer.js";
+import { logStockMovement } from "../utils/history.js";
 
 const clean = (v) => {
   const t = typeof v === "string" ? v.trim() : "";
@@ -14,7 +15,7 @@ const clean = (v) => {
 // circuito que los pedidos comunes (precio congelado por línea, descuento del cliente,
 // baja de stock atómica y movimiento de saldo). Si se cobró en el momento, se registra
 // además el pago; si no, queda a cuenta del cliente.
-export const createSale = async ({ customer, items, paymentMethod, comments, discountPercent }) => {
+export const createSale = async ({ customer, items, paymentMethod, comments, discountPercent }, userId) => {
   // si el mismo producto viene en dos líneas, se suman
   const qtyByProduct = new Map();
   for (const it of items) {
@@ -130,6 +131,16 @@ export const createSale = async ({ customer, items, paymentMethod, comments, dis
           items: { create: lines },
         },
       });
+
+      // historial de stock de cada producto vendido
+      for (const l of lines) {
+        await logStockMovement(tx, {
+          productId: l.productId,
+          delta: -l.quantity,
+          reason: `Venta al público #${order.id}`,
+          userId,
+        });
+      }
 
       // 6) Saldo: la venta suma deuda; si se cobró en el momento, se registra el pago
       await tx.balanceMovement.create({

@@ -1,6 +1,7 @@
 import prisma from "../prisma.js";
 import { AppError } from "../utils/AppError.js";
 import { supabase } from "../utils/supabaseClient.js";
+import { logProductChange } from "../utils/history.js";
 
 export const listActiveProducts = async () => {
   return prisma.product.findMany({
@@ -32,38 +33,75 @@ export const listAllProductsAdmin = async () => {
   });
 };
 
-export const createProduct = async ({ name, unit, price, internalPrice, stock, categoryId }) => {
+
+export const createProduct = async (
+  { name, unit, price, internalPrice, stock, categoryId },
+  userId
+) => {
   if (!name || !unit) throw new AppError("Datos inválidos", 400);
-  if (price == null || Number(price) <= 0) throw new AppError("Precio inválido", 400);
-  if (stock == null || Number(stock) < 0) throw new AppError("Stock inválido", 400);
+  if (price == null || Number(price) <= 0) {
+    throw new AppError("Precio inválido", 400);
+  }
+  if (stock == null || Number(stock) < 0) {
+    throw new AppError("Stock inválido", 400);
+  }
 
   if (internalPrice != null && Number(internalPrice) < 0) {
     throw new AppError("Precio interno inválido", 400);
   }
 
   let finalCategoryId = null;
+
   if (categoryId != null) {
     const catId = Number(categoryId);
-    if (Number.isNaN(catId)) throw new AppError("categoryId inválido", 400);
-    const categoryExists = await prisma.category.findUnique({ where: { id: catId } });
-    if (!categoryExists) throw new AppError("Categoría no encontrada", 400);
+    if (Number.isNaN(catId)) {
+      throw new AppError("categoryId inválido", 400);
+    }
+
+    const categoryExists = await prisma.category.findUnique({
+      where: { id: catId },
+    });
+
+    if (!categoryExists) {
+      throw new AppError("Categoría no encontrada", 400);
+    }
+
     finalCategoryId = catId;
   }
 
-  return prisma.product.create({
-    data: {
-      name: name.trim(),
-      unit: unit.trim(),
-      price: Number(price),
-      internalPrice: internalPrice != null ? Number(internalPrice) : null,
-      stock: Number(stock),
-      categoryId: finalCategoryId,
-      active: true,
-    },
+  return prisma.$transaction(async (tx) => {
+    const product = await tx.product.create({
+      data: {
+        name: name.trim(),
+        unit: unit.trim(),
+        price: Number(price),
+        internalPrice:
+          internalPrice != null ? Number(internalPrice) : null,
+        stock: Number(stock),
+        categoryId: finalCategoryId,
+        active: true,
+      },
+    });
+
+    for (const field of ["price", "internalPrice", "stock"]) {
+      await logProductChange(tx, {
+        productId: product.id,
+        productName: product.name,
+        field,
+        oldValue: null,
+        newValue: product[field],
+        reason: "Alta de producto",
+        userId,
+      });
+    }
+
+    return product;
   });
 };
 
-export const updateProduct = async (id, data) => {
+
+
+export const updateProduct = async (id, data, userId) => {
   const productId = Number(id);
   if (Number.isNaN(productId)) throw new AppError("ID inválido", 400);
 
@@ -71,18 +109,22 @@ export const updateProduct = async (id, data) => {
   if (!exists) throw new AppError("Producto no encontrado", 404);
 
   const payload = {};
+
   if (data.name != null) payload.name = String(data.name).trim();
   if (data.unit != null) payload.unit = String(data.unit).trim();
+
   if (data.stock != null) {
     const s = Number(data.stock);
     if (Number.isNaN(s) || s < 0) throw new AppError("Stock inválido", 400);
     payload.stock = s;
   }
+
   if (data.price != null) {
     const p = Number(data.price);
     if (Number.isNaN(p) || p <= 0) throw new AppError("Precio inválido", 400);
     payload.price = p;
   }
+
   if (data.internalPrice !== undefined) {
     if (data.internalPrice === null) {
       payload.internalPrice = null;
@@ -92,6 +134,7 @@ export const updateProduct = async (id, data) => {
       payload.internalPrice = ip;
     }
   }
+
   if (data.active != null) payload.active = Boolean(data.active);
 
   if (data.categoryId !== undefined) {
@@ -100,16 +143,71 @@ export const updateProduct = async (id, data) => {
     } else {
       const catId = Number(data.categoryId);
       if (Number.isNaN(catId)) throw new AppError("categoryId inválido", 400);
-      const categoryExists = await prisma.category.findUnique({ where: { id: catId } });
+
+      const categoryExists = await prisma.category.findUnique({
+        where: { id: catId },
+      });
+
       if (!categoryExists) throw new AppError("Categoría no encontrada", 400);
       payload.categoryId = catId;
     }
   }
 
-  return prisma.product.update({
-    where: { id: productId },
-    data: payload,
-    include: { category: true },
+  return prisma.$transaction(async (tx) => {
+    const updated = await tx.product.update({
+      where: { id: productId },
+      data: payload,
+      include: { category: true },
+    });
+
+    for (const field of ["price", "internalPrice", "stock"]) {
+      if (field in payload) {
+        await logProductChange(tx, {
+          productId,
+          productName: updated.name,
+          field,
+          oldValue: exists[field],
+          newValue: updated[field],
+          reason: "Edición manual",
+          userId,
+        });
+      }
+    }
+
+    // Registrar cambios de estado
+    if ("active" in payload) {
+      await logProductChange(tx, {
+        productId,
+        productName: updated.name,
+        field: "active",
+        oldValue: exists.active ? 1 : 0,
+        newValue: updated.active ? 1 : 0,
+        reason: "Cambio de estado manual",
+        userId,
+      });
+    }
+
+    return updated;
+  });
+};
+
+
+// Historial de precios y stock de un producto (más nuevo primero)
+export const getProductHistory = async (id, { field, limit } = {}) => {
+  const productId = Number(id);
+  if (Number.isNaN(productId)) throw new AppError("ID inválido", 400);
+
+  const take = Math.min(Math.max(Number(limit) || 200, 1), 500);
+
+  return prisma.productHistory.findMany({
+    where: {
+      productId,
+      ...(field && ["price", "internalPrice", "stock", "active"].includes(field)
+        ? { field }
+        : {}),
+    },
+    orderBy: { createdAt: "desc" },
+    take,
   });
 };
 
@@ -148,27 +246,48 @@ export const getCapitalTotal = async () => {
   };
 };
 
-export const deleteProduct = async (id) => {
+
+export const deleteProduct = async (id, userId) => {
   const productId = Number(id);
-  if (Number.isNaN(productId)) throw new AppError("ID inválido", 400);
 
-  const exists = await prisma.product.findUnique({ where: { id: productId } });
-  if (!exists) throw new AppError("Producto no encontrado", 404);
-
-  const hasOrders = await prisma.orderItem.findFirst({
-    where: { productId },
-  });
-
-  if (hasOrders) {
-    throw new AppError(
-      "No se puede eliminar: el producto tiene pedidos asociados. Podés desactivarlo en su lugar.",
-      409 // Conflict, más semántico que 400 acá
-    );
+  if (Number.isNaN(productId)) {
+    throw new AppError("ID inválido", 400);
   }
 
-  await prisma.product.delete({ where: { id: productId } });
-  return { message: "Producto eliminado correctamente" };
+  return prisma.$transaction(async (tx) => {
+    const product = await tx.product.findUnique({
+      where: { id: productId },
+    });
+
+    if (!product) {
+      throw new AppError("Producto no encontrado", 404);
+    }
+
+    if (!product.active) {
+      throw new AppError("El producto ya está desactivado", 409);
+    }
+
+    await tx.product.update({
+      where: { id: productId },
+      data: { active: false },
+    });
+
+    await logProductChange(tx, {
+      productId: product.id,
+      productName: product.name,
+      field: "active",
+      oldValue: 1,
+      newValue: 0,
+      reason: "Eliminación de producto (desactivación)",
+      userId,
+    });
+
+    return {
+      message: "Producto desactivado correctamente",
+    };
+  });
 };
+
 
 export const uploadProductImage = async (id, file) => {
   const productId = Number(id);
@@ -205,5 +324,39 @@ export const uploadProductImage = async (id, file) => {
     where: { id: productId },
     data: { imageUrl: publicUrlData.publicUrl },
     include: { category: true },
+  });
+};
+
+// Auditoría global de precios y stock (todos los productos), con filtros
+export const getAllProductHistory = async ({ search, field, source, from, to, limit } = {}) => {
+  const take = Math.min(Math.max(Number(limit) || 300, 1), 1000);
+
+  const where = {};
+  if (search && String(search).trim()) {
+    where.productName = { contains: String(search).trim(), mode: "insensitive" };
+  }
+  if (field && ["price", "internalPrice", "stock", "active"].includes(field)) {
+    where.field = field;
+  }
+  if (source && String(source).trim()) where.source = String(source);
+
+  if (from || to) {
+    where.createdAt = {};
+    if (from) {
+      const d = new Date(`${from}T00:00:00`);
+      if (Number.isNaN(d.getTime())) throw new AppError("Fecha 'desde' inválida", 400);
+      where.createdAt.gte = d;
+    }
+    if (to) {
+      const d = new Date(`${to}T23:59:59`);
+      if (Number.isNaN(d.getTime())) throw new AppError("Fecha 'hasta' inválida", 400);
+      where.createdAt.lte = d;
+    }
+  }
+
+  return prisma.productHistory.findMany({
+    where,
+    orderBy: { createdAt: "desc" },
+    take,
   });
 };

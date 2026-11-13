@@ -2,7 +2,7 @@ import * as saleService from "../services/sale.service.js";
 
 export const createSale = async (req, res, next) => {
   try {
-    const result = await saleService.createSale(req.body);
+    const result = await saleService.createSale(req.body, req.user.id);
     res.status(201).json(result);
   } catch (error) {
     next(error);

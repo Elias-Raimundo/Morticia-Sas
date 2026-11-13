@@ -23,6 +23,7 @@ export const createInvoice = async (req, res, next) => {
     const invoice = await invoiceService.createInvoice({
       ...req.body,
       providerId: Number(req.params.providerId),
+      userId: req.user.id,
     });
     res.status(201).json(invoice);
   } catch (error) {

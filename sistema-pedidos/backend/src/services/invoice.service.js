@@ -1,5 +1,6 @@
 import prisma from "../prisma.js";
 import { AppError } from "../utils/AppError.js";
+import { logProductChange, logStockMovement } from "../utils/history.js";
 
 export const listInvoicesByProvider = async (providerId) => {
   return prisma.invoice.findMany({
@@ -77,15 +78,39 @@ export const createInvoice = async (data) => {
     });
 
     // sube stock, actualiza precio costo, y precio de venta si se definió uno
+    const reason = `Compra factura ${number ? "N° " + number : "#" + invoice.id}`;
     for (const it of items) {
-      await tx.product.update({
+      const before = await tx.product.findUnique({ where: { id: it.productId } });
+      const after = await tx.product.update({
         where: { id: it.productId },
         data: {
           stock: { increment: it.quantity },
           internalPrice: it.unitCost,
-          ...(it.salePrice ? { price: it.salePrice } : {}),
+          ...(it.salePrice != null ? { price: it.salePrice } : {}),
         },
       });
+
+      // El stock se registra leyendo el valor posterior al incremento atómico.
+      // Así no dependemos de un "before" que pudo quedar viejo por otra compra simultánea.
+      await logStockMovement(tx, {
+        productId: it.productId,
+        delta: it.quantity,
+        reason,
+        userId: data.userId,
+      });
+
+      // Los precios también quedan auditados si cambiaron.
+      for (const field of ["internalPrice", "price"]) {
+        await logProductChange(tx, {
+          productId: it.productId,
+          productName: after.name,
+          field,
+          oldValue: before?.[field],
+          newValue: after[field],
+          reason,
+          userId: data.userId,
+        });
+      }
     }
 
     // la factura siempre suma deuda al proveedor

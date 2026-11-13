@@ -49,6 +49,7 @@ const PAYMENT_OPTIONS = [
   { value: "", label: "A cuenta (queda debiendo)" },
   { value: "efectivo", label: "Cobrado en efectivo" },
   { value: "transferencia", label: "Cobrado por transferencia" },
+  { value: "qr", label: "Cobrado con QR" },
   { value: "tarjeta", label: "Cobrado con tarjeta" },
   { value: "cheque", label: "Cobrado con cheque" },
   { value: "cheque electrónico", label: "Cobrado con cheque electrónico" },

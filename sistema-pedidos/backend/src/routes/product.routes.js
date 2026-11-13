@@ -23,6 +23,12 @@ router.delete("/admin/:id", authMiddleware, requireRole("admin"), productControl
 // ADMIN: capital total invertido en stock (costo interno)
 router.get("/admin/capital", authMiddleware, requireRole("admin"), productController.getCapitalTotal);
 
+// ADMIN: auditoría global de precios y stock (todos los productos)
+router.get("/admin/history", authMiddleware, requireRole("admin"), productController.getAllProductHistory);
+
+// ADMIN: historial de cambios de precio y stock de un producto
+router.get("/admin/:id/history", authMiddleware, requireRole("admin"), productController.getProductHistory);
+
 // ADMIN: subir/reemplazar foto del producto
 router.post(
   "/admin/:id/image",
