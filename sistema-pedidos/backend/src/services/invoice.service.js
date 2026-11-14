@@ -1,6 +1,6 @@
 import prisma from "../prisma.js";
 import { AppError } from "../utils/AppError.js";
-import { logProductChange, logStockMovement } from "../utils/history.js";
+import { logProductChange } from "../utils/history.js";
 
 export const listInvoicesByProvider = async (providerId) => {
   return prisma.invoice.findMany({
@@ -90,11 +90,15 @@ export const createInvoice = async (data) => {
         },
       });
 
-      // El stock se registra leyendo el valor posterior al incremento atómico.
-      // Así no dependemos de un "before" que pudo quedar viejo por otra compra simultánea.
-      await logStockMovement(tx, {
+      // El stock anterior/posterior sale de la fila que devolvió el UPDATE atómico
+      // (stock ya incrementado): es exacto aunque haya otra compra en paralelo y
+      // no hace falta otra consulta a la base.
+      await logProductChange(tx, {
         productId: it.productId,
-        delta: it.quantity,
+        productName: after.name,
+        field: "stock",
+        oldValue: after.stock - it.quantity,
+        newValue: after.stock,
         reason,
         userId: data.userId,
       });
@@ -153,7 +157,7 @@ export const createInvoice = async (data) => {
       where: { id: invoice.id },
       include: { items: { include: { product: true } }, installments: true },
     });
-  });
+  }, { timeout: 15000 });
 };
 
 export const payInstallment = async (installmentId, { method } = {}) => {

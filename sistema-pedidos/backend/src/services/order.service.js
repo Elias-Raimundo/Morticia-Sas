@@ -354,7 +354,7 @@ export const sendOrder = async (orderId, userId) => {
     });
 
     return { order: updated, admins };
-  });
+  }, { timeout: 15000 });
 
   const orderToEmail = result.order;
   const adminsToEmail = result.admins;
@@ -485,7 +485,7 @@ export const cancelOrder = async (orderId, userId) => {
     }
 
     return order;
-  });
+  }, { timeout: 15000 });
 };
 
 export const deliverOrder = async (orderId) => {

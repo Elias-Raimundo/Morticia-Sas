@@ -7,7 +7,7 @@ type Entry = {
   id: number;
   productId: number;
   productName: string;
-  field: "price" | "internalPrice" | "stock";
+  field: "price" | "internalPrice" | "stock" | "active";
   oldValue: number | null;
   newValue: number | null;
   reason: string;
@@ -19,6 +19,7 @@ const FIELD_LABELS: Record<Entry["field"], string> = {
   price: "Precio de venta",
   internalPrice: "Costo interno",
   stock: "Stock",
+  active: "Estado",
 };
 
 const money = (n: number | null) =>
@@ -64,7 +65,7 @@ export default function ProductHistoryModal({
   if (!product) return null;
 
   const visible = entries.filter((e) =>
-    tab === "all" ? true : tab === "stock" ? e.field === "stock" : e.field !== "stock"
+    tab === "all" ? true : tab === "stock" ? e.field === "stock" : e.field === "price" || e.field === "internalPrice"
   );
 
   const tabClass = (active: boolean) =>
@@ -111,6 +112,9 @@ export default function ProductHistoryModal({
             <div className="divide-y">
               {visible.map((e) => {
                 const isStock = e.field === "stock";
+                const isActive = e.field === "active";
+                const show = (n: number | null) =>
+                  isActive ? (n === null ? "—" : Number(n) === 1 ? "Activo" : "Inactivo") : isStock ? (n ?? "—") : money(n);
                 const delta = isStock ? (e.newValue ?? 0) - (e.oldValue ?? 0) : 0;
                 return (
                   <div key={e.id} className="space-y-1 p-4 text-sm">
@@ -129,11 +133,11 @@ export default function ProductHistoryModal({
 
                     <div className="text-gray-800">
                       <span className="text-gray-500">
-                        {isStock ? (e.oldValue ?? "—") : money(e.oldValue)}
+                        {show(e.oldValue)}
                       </span>
                       {" → "}
                       <span className="font-semibold">
-                        {isStock ? (e.newValue ?? "—") : money(e.newValue)}
+                        {show(e.newValue)}
                       </span>
                       {isStock && delta !== 0 && (
                         <span
