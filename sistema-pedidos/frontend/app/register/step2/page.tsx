@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import {toast} from "sonner";
+import PasswordInput from "@/components/ui/PasswordInput";
 
 type Step1 = {
   name: string;
@@ -134,17 +135,15 @@ export default function RegisterStep2Page() {
                 onChange={(e) => setEmail(e.target.value)}
               />
 
-              <input
+              <PasswordInput
                 className="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-amber-300"
-                type="password"
                 placeholder="Contraseña"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
               />
 
-              <input
+              <PasswordInput
                 className="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-amber-300"
-                type="password"
                 placeholder="Repetir contraseña"
                 value={password2}
                 onChange={(e) => setPassword2(e.target.value)}

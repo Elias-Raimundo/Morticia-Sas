@@ -12,17 +12,28 @@
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
+}
+
+/* El sistema es solo en modo claro: si el celular está en modo oscuro, los textos sin
+   color explícito quedaban gris claro sobre las tarjetas blancas. */
+:root {
+  color-scheme: light;
+}
+
+/* Tailwind 4 pinta los bordes con el color del texto (negro) si no se indica otro.
+   Se vuelve al gris suave de Tailwind 3 (ajuste recomendado en la guía de migración). */
+@layer base {
+  *,
+  ::after,
+  ::before,
+  ::backdrop,
+  ::file-selector-button {
+    border-color: var(--color-gray-200, currentColor);
+  }
 }
 
 @keyframes modalIn{

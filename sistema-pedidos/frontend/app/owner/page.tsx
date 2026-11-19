@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import PasswordInput from "@/components/ui/PasswordInput";
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL;
 
@@ -69,8 +70,7 @@ export default function OwnerPage() {
 
       {!current ? (
         <div className="space-y-3 rounded-xl border bg-white p-4">
-          <input
-            type="password"
+          <PasswordInput
             value={key}
             onChange={(e) => setKey(e.target.value)}
             placeholder="Clave"

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { apiFetch } from "@/lib/api";
+import { ListSkeleton } from "@/components/ui/Skeleton";
 
 type Entry = {
   id: number;
@@ -157,7 +158,7 @@ export default function AuditoriaPage() {
         {/* Resultados */}
         <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
           {loading ? (
-            <div className="p-6 text-gray-600">Cargando...</div>
+            <ListSkeleton className="p-6" />
           ) : entries.length === 0 ? (
             <div className="p-6 text-gray-500">No hay cambios registrados con esos filtros.</div>
           ) : (

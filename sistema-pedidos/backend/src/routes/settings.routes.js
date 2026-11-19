@@ -14,6 +14,13 @@ const paymentSchema = z.object({
   holder: z.string().max(100).optional(),
 });
 
+const stockSchema = z.object({
+  threshold: z.number({ error: "Ingresá un número" }).int("Tiene que ser un número entero").min(0, "No puede ser negativo").max(100000),
+});
+
+router.get("/stock", settingsController.getStock);
+router.put("/stock", validate(stockSchema), settingsController.updateStock);
+
 router.get("/payment", settingsController.getPayment);
 router.put("/payment", validate(paymentSchema), settingsController.updatePayment);
 router.post("/payment/qr", uploadImage, settingsController.uploadQr);

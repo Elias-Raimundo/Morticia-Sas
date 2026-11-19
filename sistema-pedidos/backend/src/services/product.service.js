@@ -3,6 +3,15 @@ import { AppError } from "../utils/AppError.js";
 import { supabase } from "../utils/supabaseClient.js";
 import { logProductChange } from "../utils/history.js";
 
+// Stock mínimo propio: vacío/null = usa el mínimo general. Entero >= 0.
+const parseMinStock = (value) => {
+  if (value === undefined) return undefined;
+  if (value === null || value === "") return null;
+  const n = Number(value);
+  if (!Number.isInteger(n) || n < 0) throw new AppError("Stock mínimo inválido", 400);
+  return n;
+};
+
 export const listActiveProducts = async () => {
   return prisma.product.findMany({
     where: { active: true },
@@ -35,9 +44,10 @@ export const listAllProductsAdmin = async () => {
 
 
 export const createProduct = async (
-  { name, unit, price, internalPrice, stock, categoryId },
+  { name, unit, price, internalPrice, stock, categoryId, minStock },
   userId
 ) => {
+  const finalMinStock = parseMinStock(minStock) ?? null;
   if (!name || !unit) throw new AppError("Datos inválidos", 400);
   if (price == null || Number(price) <= 0) {
     throw new AppError("Precio inválido", 400);
@@ -78,6 +88,7 @@ export const createProduct = async (
         internalPrice:
           internalPrice != null ? Number(internalPrice) : null,
         stock: Number(stock),
+        minStock: finalMinStock,
         categoryId: finalCategoryId,
         active: true,
       },
@@ -136,6 +147,9 @@ export const updateProduct = async (id, data, userId) => {
   }
 
   if (data.active != null) payload.active = Boolean(data.active);
+
+  const minStock = parseMinStock(data.minStock);
+  if (minStock !== undefined) payload.minStock = minStock;
 
   if (data.categoryId !== undefined) {
     if (data.categoryId === null) {

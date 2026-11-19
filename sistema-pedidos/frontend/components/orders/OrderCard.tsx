@@ -5,6 +5,8 @@ import { apiFetch } from "@/lib/api";
 import { toast } from "sonner";
 import { formatCountdown, useCountdown } from "@/lib/useCountdown";
 import { PAYMENT_LABELS } from "./PaymentMethodPicker";
+import { useConfirm } from "@/components/ui/ConfirmDialog";
+import { CreditCard, Pencil } from "lucide-react";
 type OrderStatus = "draft" | "confirmed" | "delivered" | "cancelled";
 
 interface OrderItem{
@@ -75,6 +77,7 @@ export default function OrderCard({
   onChanged?: () => void;
   onOpen: (id: number) => void;
 }) {
+  const confirmDialog = useConfirm();
   const [loading, setLoading] = useState<null | "confirm" | "cancel" | "deliver" | "delete" >(null);
 
   const orderId = String(order.id);
@@ -97,7 +100,7 @@ export default function OrderCard({
         return;
       }
 
-      toast.success(action === "deliver" ? "Pedido entregado ✅" : "Pedido cancelado");
+      toast.success(action === "deliver" ? "Pedido entregado" : "Pedido cancelado");
 
       onChanged?.();
     } catch {
@@ -241,7 +244,7 @@ export default function OrderCard({
             <div className="flex flex-wrap items-center gap-2 text-xs">
               {order.clientPaymentMethod && (
                 <span className="rounded-full border border-gray-200 bg-white px-2.5 py-1 font-medium text-gray-700">
-                  💳 {PAYMENT_LABELS[order.clientPaymentMethod] ?? order.clientPaymentMethod}
+                  <CreditCard className="mr-1 inline-block h-3.5 w-3.5 align-[-2px]" />{PAYMENT_LABELS[order.clientPaymentMethod] ?? order.clientPaymentMethod}
                 </span>
               )}
               {order.editedAt && (
@@ -255,7 +258,7 @@ export default function OrderCard({
           {/* Ventana para modificar (cliente) */}
           {!isAdmin && order.status === "confirmed" && editSeconds > 0 && (
             <div className="rounded-2xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
-              ✏️ Podés modificar este pedido por {formatCountdown(editSeconds)} más. Tocá la tarjeta para editarlo.
+              <Pencil className="mr-1 inline-block h-3.5 w-3.5 align-[-2px]" />Podés modificar este pedido por {formatCountdown(editSeconds)} más. Tocá la tarjeta para editarlo.
             </div>
           )}
 
@@ -285,7 +288,8 @@ export default function OrderCard({
               <button
                 onClick={async (e) => {
                   e.stopPropagation();
-                  if (!confirm("¿Eliminar este pedido?")) return;
+                  const ok = await confirmDialog({ title: "¿Eliminar este pedido?", confirmText: "Eliminar", danger: true });
+                  if (!ok) return;
                   await deleteDraft();
                 }}
                 disabled={loading === "delete"}

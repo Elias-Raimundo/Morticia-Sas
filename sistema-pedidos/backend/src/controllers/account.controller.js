@@ -8,3 +8,12 @@ export const deleteAccount = async (req, res, next) => {
     next(error);
   }
 };
+
+export const setPassword = async (req, res, next) => {
+  try {
+    const result = await accountService.setPassword(req.params.id, req.body.password);
+    res.json(result);
+  } catch (error) {
+    next(error);
+  }
+};

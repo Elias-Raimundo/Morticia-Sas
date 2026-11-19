@@ -3,25 +3,33 @@ import prisma from "../prisma.js";
 import { AppError } from "../utils/AppError.js";
 
 // El token dura 7 días, así que una cuenta eliminada/archivada seguiría entrando con
-// su token viejo. Por eso se verifica en la base que la cuenta siga activa. El
-// resultado se guarda 30 segundos en memoria para no consultar la base en cada pedido
-// (la campanita, por ejemplo, consulta seguido).
+// su token viejo. Por eso se verifica en la base que la cuenta siga activa y que el
+// token sea posterior al último cambio de contraseña. El resultado se guarda 30 segundos
+// en memoria para no consultar la base en cada pedido (la campanita consulta seguido).
 const STATUS_CACHE_MS = 30_000;
-const statusCache = new Map(); // userId -> { active, expires }
+const statusCache = new Map(); // userId -> { active, passwordChangedAt, expires }
 
 export const invalidateUserStatus = (userId) => {
   statusCache.delete(Number(userId));
 };
 
-const isUserActive = async (userId) => {
+const getUserStatus = async (userId) => {
   const key = Number(userId);
   const hit = statusCache.get(key);
-  if (hit && hit.expires > Date.now()) return hit.active;
+  if (hit && hit.expires > Date.now()) return hit;
 
-  const user = await prisma.user.findUnique({ where: { id: key }, select: { active: true } });
-  const active = !!user && user.active;
-  statusCache.set(key, { active, expires: Date.now() + STATUS_CACHE_MS });
-  return active;
+  const user = await prisma.user.findUnique({
+    where: { id: key },
+    select: { active: true, passwordChangedAt: true },
+  });
+  const status = {
+    active: !!user && user.active,
+    // en segundos, igual que el "iat" del token
+    passwordChangedAt: user?.passwordChangedAt ? Math.floor(user.passwordChangedAt.getTime() / 1000) : null,
+    expires: Date.now() + STATUS_CACHE_MS,
+  };
+  statusCache.set(key, status);
+  return status;
 };
 
 export const authMiddleware = async (req, res, next) => {
@@ -41,8 +49,13 @@ export const authMiddleware = async (req, res, next) => {
   }
 
   try {
-    if (!(await isUserActive(decoded.id))) {
+    const status = await getUserStatus(decoded.id);
+    if (!status.active) {
       return next(new AppError("Esta cuenta ya no está disponible", 401));
+    }
+    // Token emitido antes del último cambio de contraseña: la sesión se cerró
+    if (status.passwordChangedAt && (decoded.iat ?? 0) < status.passwordChangedAt) {
+      return next(new AppError("Tu sesión expiró. Volvé a iniciar sesión.", 401));
     }
   } catch (error) {
     return next(error);

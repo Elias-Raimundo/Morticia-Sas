@@ -24,11 +24,11 @@ export const login = async (req, res) => {
   }
 };
 
-export const resetPasswordSimple = async (req, res) => {
+export const changeOwnPassword = async (req, res, next) => {
   try {
-    const result = await authService.resetPasswordSimple(req.body);
+    const result = await authService.changeOwnPassword(req.user.id, req.body);
     res.json(result);
   } catch (error) {
-    res.status(400).json({ error: error.message });
+    next(error);
   }
 };

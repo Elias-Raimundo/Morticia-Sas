@@ -3,8 +3,11 @@
 import { useEffect, useState } from "react";
 import { apiFetch } from "@/lib/api";
 import ClientBalanceModal from "@/components/balance/ClientBalanceModal";
+import SetPasswordModal from "@/components/accounts/SetPasswordModal";
 import { toast } from "sonner";
 import { useAuth } from "@/context/Auth.context";
+import { useConfirm } from "@/components/ui/ConfirmDialog";
+import { ListSkeleton } from "@/components/ui/Skeleton";
 
 type ClientBalance = {
   id: number;
@@ -30,10 +33,12 @@ type AdminUser = {
 };
 
 export default function AdminPage() {
+  const confirmDialog = useConfirm();
   const { user: me } = useAuth();
   const [admins, setAdmins] = useState<AdminUser[]>([]);
   const [savingAdminId, setSavingAdminId] = useState<number | null>(null);
   const [deletingId, setDeletingId] = useState<number | null>(null);
+  const [passwordFor, setPasswordFor] = useState<{ id: number; name: string } | null>(null);
 
   const [items, setItems] = useState<ClientBalance[]>([]);
   const [loading, setLoading] = useState(true);
@@ -91,12 +96,15 @@ export default function AdminPage() {
   // Elimina la cuenta; si tiene historial el servidor la archiva en lugar de borrarla
   const deleteAccount = async (id: number, name: string, balance?: number) => {
     const saldo = balance ? `\n\nOjo: tiene un saldo de ${formatMoney(balance)}.` : "";
-    const ok = window.confirm(
-      `¿Eliminar la cuenta de "${name}"?\n\n` +
+    const ok = await confirmDialog({
+      title: `¿Eliminar la cuenta de "${name}"?`,
+      message:
         "Si no tiene historial se borra. Si ya tiene pedidos o movimientos se archiva: " +
         "deja de poder entrar y se conserva su historial." +
-        saldo
-    );
+        saldo,
+      confirmText: "Eliminar",
+      danger: true,
+    });
     if (!ok) return;
 
     setDeletingId(id);
@@ -155,7 +163,7 @@ export default function AdminPage() {
         </div>
 
         {loading ? (
-          <div className="p-6 text-gray-600">Cargando...</div>
+          <ListSkeleton className="p-6" />
         ) : items.length === 0 ? (
           <div className="p-6 text-gray-600">No hay clientes.</div>
         ) : filteredItems.length === 0 ? (
@@ -186,16 +194,24 @@ export default function AdminPage() {
 
                   <div className="flex justify-end gap-2">
                     <button
-                      className="rounded-lg border border-amber-300 text-amber-700 px-3 py-2 text-sm hover:bg-amber-50"
+                      className="whitespace-nowrap rounded-lg border border-amber-300 text-amber-700 px-3 py-2 text-sm hover:bg-amber-50"
                       onClick={() => {
                         setSelectedClientId(item.id);
                         setDetailsOpen(true);
                       }}
                     >
-                      Ver detalles
+                      Detalles
                     </button>
+                    {item.hasAccess !== false && (
+                      <button
+                        className="whitespace-nowrap rounded-lg border border-gray-300 text-gray-700 px-3 py-2 text-sm hover:bg-gray-50"
+                        onClick={() => setPasswordFor({ id: item.id, name: item.name })}
+                      >
+                        Contraseña
+                      </button>
+                    )}
                     <button
-                      className="rounded-lg border border-red-200 text-red-600 px-3 py-2 text-sm hover:bg-red-50 disabled:opacity-50"
+                      className="whitespace-nowrap rounded-lg border border-red-200 text-red-600 px-3 py-2 text-sm hover:bg-red-50 disabled:opacity-50"
                       disabled={deletingId === item.id}
                       onClick={() => deleteAccount(item.id, item.name, item.balance)}
                     >
@@ -208,12 +224,11 @@ export default function AdminPage() {
 
             {/* Desktop */}
             <div className="hidden md:block overflow-x-auto">
-              <div className="min-w-[700px]">
+              <div className="min-w-[680px]">
                 <div className="grid grid-cols-12 gap-2 px-4 py-3 border-b font-semibold text-sm bg-amber-50 text-gray-800">
-                  <div className="col-span-3">Cliente</div>
-                  <div className="col-span-3">Email</div>
+                  <div className="col-span-4">Cliente</div>
                   <div className="col-span-2 text-right">Balance</div>
-                  <div className="col-span-4 text-right">Acción</div>
+                  <div className="col-span-6 text-right">Acción</div>
                 </div>
 
                 {filteredItems.map((item, idx) => (
@@ -223,16 +238,16 @@ export default function AdminPage() {
                       idx % 2 === 0 ? "bg-white" : "bg-gray-50/60"
                     }`}
                   >
-                    <div className="col-span-3 font-medium text-gray-900">
-                      {item.name}
-                    </div>
-
-                    <div
-                      className={`col-span-3 truncate ${
-                        item.hasAccess === false ? "text-gray-500 italic" : "text-gray-700"
-                      }`}
-                    >
-                      {contactLabel(item)}
+                    <div className="col-span-4 min-w-0">
+                      <div className="truncate font-medium text-gray-900">{item.name}</div>
+                      <div
+                        className={`truncate text-xs ${
+                          item.hasAccess === false ? "text-gray-500 italic" : "text-gray-500"
+                        }`}
+                        title={contactLabel(item)}
+                      >
+                        {contactLabel(item)}
+                      </div>
                     </div>
 
                     <div
@@ -243,9 +258,9 @@ export default function AdminPage() {
                       {formatMoney(item.balance)}
                     </div>
 
-                    <div className="col-span-4 flex justify-end gap-2">
+                    <div className="col-span-6 flex justify-end gap-2">
                       <button
-                        className="rounded-lg border border-amber-300 text-amber-700 px-3 py-1 text-sm hover:bg-amber-50"
+                        className="whitespace-nowrap rounded-lg border border-amber-300 text-amber-700 px-3 py-1 text-sm hover:bg-amber-50"
                         onClick={() => {
                           setSelectedClientId(item.id);
                           setDetailsOpen(true);
@@ -253,8 +268,16 @@ export default function AdminPage() {
                       >
                         Ver detalles
                       </button>
+                      {item.hasAccess !== false && (
+                        <button
+                          className="whitespace-nowrap rounded-lg border border-gray-300 text-gray-700 px-3 py-1 text-sm hover:bg-gray-50"
+                          onClick={() => setPasswordFor({ id: item.id, name: item.name })}
+                        >
+                          Contraseña
+                        </button>
+                      )}
                       <button
-                        className="rounded-lg border border-red-200 text-red-600 px-3 py-1 text-sm hover:bg-red-50 disabled:opacity-50"
+                        className="whitespace-nowrap rounded-lg border border-red-200 text-red-600 px-3 py-1 text-sm hover:bg-red-50 disabled:opacity-50"
                         disabled={deletingId === item.id}
                         onClick={() => deleteAccount(item.id, item.name, item.balance)}
                       >
@@ -282,14 +305,14 @@ export default function AdminPage() {
         ) : (
           <ul className="divide-y">
             {admins.map((a) => (
-              <li key={a.id} className="flex items-center justify-between gap-3 px-5 py-3">
+              <li key={a.id} className="flex flex-col gap-3 px-5 py-3 sm:flex-row sm:items-center sm:justify-between">
                 <div className="min-w-0">
                   <div className="font-medium text-gray-900">
                     {a.name} {a.lastName ?? ""}
                   </div>
                   <div className="text-sm text-gray-500 break-all">{a.email}</div>
                 </div>
-                <div className="flex shrink-0 items-center gap-3">
+                <div className="flex flex-wrap items-center gap-3 sm:shrink-0">
                   <label className="flex items-center gap-2 text-sm text-gray-700">
                     <span>Recibe mail de pedidos</span>
                     <input
@@ -300,6 +323,14 @@ export default function AdminPage() {
                       className="h-4 w-4"
                     />
                   </label>
+                  <button
+                    className="rounded-lg border border-gray-300 text-gray-700 px-3 py-1 text-sm hover:bg-gray-50"
+                    onClick={() =>
+                      setPasswordFor({ id: a.id, name: `${a.name} ${a.lastName ?? ""}`.trim() })
+                    }
+                  >
+                    Contraseña
+                  </button>
                   {String(a.id) !== String(me?.id) && (
                     <button
                       className="rounded-lg border border-red-200 text-red-600 px-3 py-1 text-sm hover:bg-red-50 disabled:opacity-50"
@@ -315,6 +346,8 @@ export default function AdminPage() {
           </ul>
         )}
       </div>
+
+      <SetPasswordModal account={passwordFor} onClose={() => setPasswordFor(null)} />
 
       <ClientBalanceModal
         open={detailsOpen}

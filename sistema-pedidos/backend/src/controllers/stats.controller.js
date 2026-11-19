@@ -1,3 +1,4 @@
+import { getAdminHome as getAdminHomeService } from "../services/home.service.js";
 import {
   getProductsStatsService,
   getPurchasesStatsService,
@@ -22,6 +23,14 @@ export const getPurchasesStats = async (req, res, next) => {
     const data = await getPurchasesStatsService({ range, from, to });
 
     res.json(data);
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getAdminHome = async (req, res, next) => {
+  try {
+    res.json(await getAdminHomeService());
   } catch (error) {
     next(error);
   }

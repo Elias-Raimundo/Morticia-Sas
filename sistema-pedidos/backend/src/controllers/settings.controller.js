@@ -1,4 +1,5 @@
 import * as settingsService from "../services/settings.service.js";
+import { getLowStockThreshold, setLowStockThreshold } from "../utils/stock.js";
 
 export const getPayment = async (req, res, next) => {
   try {
@@ -30,5 +31,21 @@ export const deleteQr = async (req, res, next) => {
     res.json(await settingsService.deletePaymentQr());
   } catch (e) {
     next(e);
+  }
+};
+
+export const getStock = async (req, res, next) => {
+  try {
+    res.json({ threshold: await getLowStockThreshold() });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const updateStock = async (req, res, next) => {
+  try {
+    res.json({ threshold: await setLowStockThreshold(req.body.threshold) });
+  } catch (error) {
+    next(error);
   }
 };

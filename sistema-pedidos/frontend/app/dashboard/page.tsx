@@ -7,6 +7,7 @@ import OrderDetailsModal from "@/components/orders/OrderDetailsModal";
 import { useEffect, useState } from "react";
 import { apiFetch } from "@/lib/api";
 import { useRouter, useSearchParams } from "next/navigation";
+import { ListSkeleton, PageSkeleton } from "@/components/ui/Skeleton";
 
 
 export default function DashboardPage() {
@@ -58,7 +59,18 @@ export default function DashboardPage() {
     loadData();
   }, [user]);
 
-  if (loading) return <div className="p-6 text-gray-600">Cargando...</div>;
+  // Abre el pedido que viene en la URL (?orderId=..., al tocar una notificación).
+  // Va antes de los return tempranos: los hooks no pueden quedar después de un return.
+  useEffect(() => {
+    const orderIdFromUrl = searchParams.get("orderId");
+    if (!orderIdFromUrl) return;
+    const parsedId = Number(orderIdFromUrl);
+    if (Number.isNaN(parsedId)) return;
+    setSelectedOrderId(parsedId);
+    setDetailsOpen(true);
+  }, [searchParams]);
+
+  if (loading) return <PageSkeleton />;
   if (!user) return <div className="p-6 text-red-600">No autorizado</div>;
 
   const isAdmin = user.role === "admin";
@@ -88,17 +100,6 @@ export default function DashboardPage() {
 
     return matchesClient && matchesFrom && matchesTo;
   });
-
-  useEffect(() => {
-    const orderIdFromUrl = searchParams.get("orderId");
-
-    if (!orderIdFromUrl)  return;
-    const parsedId = Number(orderIdFromUrl);
-    if (Number.isNaN(parsedId)) return;
-    setSelectedOrderId(parsedId);
-     setDetailsOpen(true);
-    
-  }, [searchParams]);
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-amber-50 via-white to-white">
@@ -240,8 +241,8 @@ export default function DashboardPage() {
 
             <div className="p-4 md:p-6">
               {loadingOrders ? (
-                <div className="rounded-2xl border border-dashed border-gray-300 bg-gray-50 p-8 text-center text-gray-600">
-                  Cargando pedidos...
+                <div className="rounded-2xl border border-gray-200 bg-white">
+                  <ListSkeleton rows={4} className="p-5" />
                 </div>
               ) : orders.length === 0 ? (
                 <div className="rounded-2xl border border-dashed border-gray-300 bg-gray-50 p-8 text-center text-gray-600">

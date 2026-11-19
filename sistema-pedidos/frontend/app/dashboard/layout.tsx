@@ -5,18 +5,25 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState, useRef } from "react";
 import Sidebar from "@/components/layout/SideBar";
 import { apiFetch } from "@/lib/api";
+import ChangePasswordModal from "@/components/accounts/ChangePasswordModal";
+import { Bell, Trash2, UserRound } from "lucide-react";
+import { FullScreenLoader } from "@/components/ui/Skeleton";
 
 export default function DashboardLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const { user, loading } = useAuth();
+  const { user, loading, logout } = useAuth();
   const router = useRouter();
   const [notifications, setNotifications] = useState(0);
   const [openNotifications, setOpenNotifications] = useState(false);
   const [notificationList, setNotificationList] = useState<any[]>([]);
   const dropdownRef = useRef<HTMLDivElement | null>(null);
+  // Menú de cuenta (solo celular: en la compu está en la barra lateral)
+  const [openAccount, setOpenAccount] = useState(false);
+  const [changePasswordOpen, setChangePasswordOpen] = useState(false);
+  const accountRef = useRef<HTMLDivElement | null>(null);
   const [billing, setBilling] = useState<{
     state: "ok" | "warning" | "readonly";
     monthName?: string;
@@ -89,6 +96,12 @@ export default function DashboardLayout({
       ) {
         setOpenNotifications(false);
       }
+      if (
+        accountRef.current &&
+        !accountRef.current.contains(event.target as Node)
+      ) {
+        setOpenAccount(false);
+      }
     };
 
     document.addEventListener("mousedown", handleClickOutside);
@@ -98,7 +111,7 @@ export default function DashboardLayout({
     };
   }, []);
 
-  if (loading) return <div className="p-6">Cargando...</div>;
+  if (loading) return <FullScreenLoader />;
   if (!user) return null;
 
   const isAdmin = user.role === "admin";
@@ -107,15 +120,52 @@ export default function DashboardLayout({
     <div className="flex min-h-screen bg-gray-50">
       <Sidebar />
 
-      <main className="flex-1 px-4 py-4 pb-24 md:pb-0">
-        <div className="mb-4 flex justify-end">
+      <main className="min-w-0 flex-1 px-4 py-4 pb-24 md:pb-0">
+        <div className="mb-4 flex justify-end gap-2">
+          <div ref={accountRef} className="relative md:hidden">
+            <button
+              type="button"
+              onClick={() => setOpenAccount((prev) => !prev)}
+              className="rounded-full border border-gray-200 bg-white px-3 py-2 shadow-sm"
+              title="Mi cuenta"
+            >
+              <UserRound className="h-5 w-5 text-gray-700" />
+            </button>
+
+            {openAccount && (
+              <div className="absolute right-0 z-50 mt-2 w-64 overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-xl">
+                <div className="border-b px-4 py-3">
+                  <div className="text-xs text-gray-500">Sesión iniciada</div>
+                  <div className="truncate text-sm text-gray-800">{user.email}</div>
+                </div>
+                <button
+                  type="button"
+                  className="block w-full px-4 py-3 text-left text-sm text-gray-700 hover:bg-gray-50"
+                  onClick={() => {
+                    setOpenAccount(false);
+                    setChangePasswordOpen(true);
+                  }}
+                >
+                  Cambiar contraseña
+                </button>
+                <button
+                  type="button"
+                  className="block w-full border-t px-4 py-3 text-left text-sm text-red-600 hover:bg-red-50"
+                  onClick={logout}
+                >
+                  Salir
+                </button>
+              </div>
+            )}
+          </div>
+
           <div ref={dropdownRef} className="relative">
             <button
               type="button"
               onClick={() => setOpenNotifications((prev) => !prev)}
               className="relative rounded-full border border-gray-200 bg-white px-3 py-2 shadow-sm"
             >
-              <span className="text-lg">🔔</span>
+              <Bell className="h-5 w-5 text-gray-700" />
 
               {notifications > 0 && (
                 <span className="absolute -right-1 -top-1 min-w-[20px] rounded-full bg-red-500 px-1.5 py-0.5 text-center text-xs font-semibold text-white">
@@ -196,7 +246,7 @@ export default function DashboardLayout({
                             className="flex h-8 w-8 items-center justify-center rounded-lg border border-red-200 text-sm text-red-600 hover:bg-red-50"
                             title="Eliminar notificación"
                           >
-                            🗑️
+                            <Trash2 className="h-4 w-4" />
                           </button>
                         </div>
                       </div>
@@ -259,6 +309,8 @@ export default function DashboardLayout({
 
         {children}
       </main>
+
+      <ChangePasswordModal open={changePasswordOpen} onClose={() => setChangePasswordOpen(false)} />
     </div>
   );
 }

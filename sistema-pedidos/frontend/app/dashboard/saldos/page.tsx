@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { apiFetch } from "@/lib/api";
 import { toast } from "sonner";
+import { ListSkeleton } from "@/components/ui/Skeleton";
 
 type Movement = {
   id: number;
@@ -150,7 +151,7 @@ export default function BalancePage() {
         </div>
 
         {loading ? (
-          <div className="p-6 text-gray-600">Cargando...</div>
+          <ListSkeleton className="p-6" />
         ) : movements.length === 0 ? (
           <div className="p-6 text-gray-600">No hay movimientos.</div>
         ) : (

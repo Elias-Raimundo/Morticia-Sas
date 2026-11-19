@@ -1,6 +1,8 @@
 import prisma  from "../prisma.js";
 import { hashPassword, comparePassword } from "../utils/hash.js";
 import { generateToken } from "../utils/generateToken.js";
+import { AppError } from "../utils/AppError.js";
+import { invalidateUserStatus } from "../middleware/auth.middleware.js";
 
 export const register = async (data) => {
   if (!data || typeof data !== "object") {
@@ -18,11 +20,12 @@ export const register = async (data) => {
       throw new Error("EMAIL_INVALIDO");
   }
 
-  const safeEmail = String(email).trim();
+  // El email se guarda en minúsculas: "Juan@Gmail.com" y "juan@gmail.com" son la misma cuenta
+  const safeEmail = String(email).trim().toLowerCase();
   const safeDniCuil = String(dniCuil).trim();
 
   const existingUser = await prisma.user.findFirst({
-    where: { email: safeEmail },
+    where: { email: { equals: safeEmail, mode: "insensitive" } },
   });
 
   if (existingUser) {
@@ -57,7 +60,12 @@ export const register = async (data) => {
 };
 
 export const login = async (data) => {
-  const user = await prisma.user.findFirst({ where: { email: data.email } });
+  // Sin distinguir mayúsculas (hay cuentas viejas guardadas con mayúsculas)
+  const email = String(data?.email ?? "").trim();
+  if (!email || !data?.password) throw new Error("Credenciales inválidas");
+  const user = await prisma.user.findFirst({
+    where: { email: { equals: email, mode: "insensitive" } },
+  });
   if (!user) throw new Error("Credenciales inválidas");
 
   const validPassword = await comparePassword(data.password, user.password);
@@ -77,36 +85,40 @@ export const login = async (data) => {
   return { user: safeUser, token };
 };
 
-export const resetPasswordSimple = async (data) => {
-  const email = String(data.email || "").trim();
-  const newPassword = String(data.newPassword || "").trim();
+// El usuario logueado cambia su propia contraseña (pide la actual para confirmar).
+export const changeOwnPassword = async (userId, data) => {
+  const currentPassword = String(data?.currentPassword ?? "");
+  const newPassword = String(data?.newPassword ?? "");
 
-  if (!email || !newPassword) {
-    throw new Error("Faltan email o nueva contraseña");
+  if (!currentPassword || !newPassword) {
+    throw new AppError("Completá la contraseña actual y la nueva", 400);
   }
-
   if (newPassword.length < 6) {
-    throw new Error("La nueva contraseña debe tener al menos 6 caracteres");
+    throw new AppError("La nueva contraseña debe tener al menos 6 caracteres", 400);
   }
-  
+  if (newPassword.length > 100) {
+    throw new AppError("La contraseña es demasiado larga", 400);
+  }
+
   const user = await prisma.user.findUnique({
-    where: { email },
+    where: { id: Number(userId) },
+    select: { id: true, password: true },
   });
+  if (!user) throw new AppError("Usuario no encontrado", 404);
 
-  if (!user) {
-    throw new Error("El email no está registrado");
+  const valid = await comparePassword(currentPassword, user.password);
+  if (!valid) throw new AppError("La contraseña actual no es correcta", 400);
+
+  if (await comparePassword(newPassword, user.password)) {
+    throw new AppError("La nueva contraseña tiene que ser distinta de la actual", 400);
   }
 
-  if (user.hasAccess === false) {
-    throw new Error("Esta cuenta no tiene acceso al sistema.");
-  }
-
-  const hashedPassword = await hashPassword(newPassword);
-
-  await prisma.user.update({
+  const updated = await prisma.user.update({
     where: { id: user.id },
-    data: { password: hashedPassword },
+    data: { password: await hashPassword(newPassword), passwordChangedAt: new Date() },
   });
+  invalidateUserStatus(user.id);
 
-  return { message: "Contraseña actualizada correctamente" };
+  // Se cierran las demás sesiones (otros dispositivos). Esta sigue con un token nuevo.
+  return { message: "Contraseña actualizada", token: generateToken(updated) };
 };

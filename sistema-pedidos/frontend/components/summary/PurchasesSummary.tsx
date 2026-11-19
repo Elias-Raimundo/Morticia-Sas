@@ -11,6 +11,7 @@ import {
   YAxis,
   Tooltip,
 } from "recharts";
+import { ChartSkeleton, ListSkeleton } from "@/components/ui/Skeleton";
 
 type ProductPurchase = {
   productId: number;
@@ -200,7 +201,7 @@ export default function PurchasesSummary() {
           </div>
 
           {loading ? (
-            <div className="p-6 text-gray-600">Cargando resumen...</div>
+            <ListSkeleton className="p-6" />
           ) : !data || !data.products?.length ? (
             <div className="p-6 text-gray-500">No hay compras para este período.</div>
           ) : (
@@ -264,7 +265,7 @@ export default function PurchasesSummary() {
           </div>
 
           {loading ? (
-            <div className="p-6 text-gray-600">Cargando...</div>
+            <ListSkeleton className="p-6" />
           ) : !data?.providers?.length ? (
             <div className="p-6 text-gray-500">No hay compras para este período.</div>
           ) : (
@@ -292,7 +293,7 @@ export default function PurchasesSummary() {
           </div>
 
           {loading ? (
-            <div className="p-6 text-gray-600">Cargando gráfico...</div>
+            <ChartSkeleton />
           ) : !data?.purchasesByDay?.length ? (
             <div className="p-6 text-gray-500">No hay datos para mostrar en el gráfico.</div>
           ) : (

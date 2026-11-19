@@ -3,6 +3,9 @@
 import { useEffect, useState } from "react";
 import { apiFetch } from "@/lib/api";
 import { toast } from "sonner";
+import { useConfirm } from "@/components/ui/ConfirmDialog";
+import { CalendarDays, MapPin } from "lucide-react";
+import { ListSkeleton } from "@/components/ui/Skeleton";
 
 type Payment = {
   id: number;
@@ -76,6 +79,7 @@ const localOf = (a: { client?: { name: string } | null; location?: string | null
 const METHODS = ["efectivo", "transferencia", "tarjeta", "cheque", "cheque electrónico", "cuotas", "otro"];
 
 export default function BienesPage() {
+  const confirmDialog = useConfirm();
   const [items, setItems] = useState<Asset[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
   const [loading, setLoading] = useState(true);
@@ -300,7 +304,13 @@ export default function BienesPage() {
   };
 
   const deactivateAsset = async (assetId: number) => {
-    if (!confirm("¿Eliminar este bien? Deja de verse en el listado, pero queda registrado en el historial.")) return;
+    const ok = await confirmDialog({
+      title: "¿Eliminar este bien?",
+      message: "Deja de verse en el listado, pero queda registrado en el historial.",
+      confirmText: "Eliminar",
+      danger: true,
+    });
+    if (!ok) return;
     try {
       const res = await apiFetch(`/api/assets/${assetId}`, { method: "DELETE" });
       if (!res.ok) {
@@ -522,7 +532,7 @@ export default function BienesPage() {
           </div>
 
           {loadingHistory ? (
-            <div className="p-5 text-sm text-gray-600">Cargando historial...</div>
+            <ListSkeleton className="p-5" />
           ) : history.length === 0 ? (
             <div className="p-5 text-sm text-gray-500">Todavía no hay cambios registrados.</div>
           ) : (
@@ -652,7 +662,7 @@ export default function BienesPage() {
         </div>
 
         {loading ? (
-          <div className="p-6 text-gray-600">Cargando...</div>
+          <ListSkeleton className="p-6" />
         ) : items.length === 0 ? (
           <div className="p-6 text-gray-600">Todavía no registraste ningún bien.</div>
         ) : filteredItems.length === 0 ? (
@@ -758,7 +768,7 @@ export default function BienesPage() {
                         )}
                         {a.installmentsCount ? (
                           <span className="rounded-full bg-indigo-100 px-2 py-0.5 text-xs font-medium text-indigo-800">
-                            📅 {a.installmentsCount} {a.installmentsCount === 1 ? "cuota" : "cuotas"}
+                            <CalendarDays className="mr-1 inline-block h-3.5 w-3.5 align-[-2px]" />{a.installmentsCount} {a.installmentsCount === 1 ? "cuota" : "cuotas"}
                           </span>
                         ) : null}
                       </div>
@@ -766,7 +776,12 @@ export default function BienesPage() {
                         <div className="text-sm text-gray-500">{a.description}</div>
                       )}
                       <div className="mt-1 text-xs text-gray-500">
-                        {(a.client?.name || a.location) && `📍 ${a.client?.name ?? a.location} · `}
+                        {(a.client?.name || a.location) && (
+                          <>
+                            <MapPin className="mr-1 inline-block h-3.5 w-3.5 align-[-2px]" />
+                            {a.client?.name ?? a.location}{" · "}
+                          </>
+                        )}
                         Adquirido: {formatDay(a.acquiredAt)}
                       </div>
                     </div>

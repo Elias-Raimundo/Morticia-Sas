@@ -1,6 +1,7 @@
 import prisma from "../prisma.js";
 import { AppError } from "../utils/AppError.js";
 import { invalidateUserStatus } from "../middleware/auth.middleware.js";
+import { hashPassword } from "../utils/hash.js";
 
 // Elimina una cuenta:
 //  - Si no tiene pedidos ni movimientos de saldo, se borra de verdad.
@@ -52,4 +53,29 @@ export const deleteAccount = async (id, actorId) => {
     result: "archived",
     message: "La cuenta tenía historial: se archivó (ya no puede entrar) y se conservaron sus pedidos y saldos",
   };
+};
+
+// El admin le asigna una contraseña nueva a una cuenta (cliente con acceso o admin).
+// Reemplaza al viejo "recuperar contraseña" público, que dejaba cambiar la clave de
+// cualquiera sabiendo solo el email.
+export const setPassword = async (id, password) => {
+  const userId = Number(id);
+  if (Number.isNaN(userId)) throw new AppError("ID inválido", 400);
+
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { id: true, active: true, hasAccess: true },
+  });
+  if (!user || !user.active) throw new AppError("Cuenta no encontrada", 404);
+  if (user.hasAccess === false) {
+    throw new AppError("Esta cuenta no tiene acceso al sistema, no usa contraseña", 400);
+  }
+
+  await prisma.user.update({
+    where: { id: userId },
+    data: { password: await hashPassword(password), passwordChangedAt: new Date() },
+  });
+  invalidateUserStatus(userId); // sus sesiones abiertas se cierran
+
+  return { message: "Contraseña actualizada" };
 };

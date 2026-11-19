@@ -11,6 +11,7 @@ model User {
   name             String
   email            String            @unique
   password         String
+  passwordChangedAt DateTime?                        // al cambiar la contraseña se invalidan los tokens anteriores
   role             Role
   createdAt        DateTime          @default(now())
   active           Boolean           @default(true)
@@ -39,6 +40,7 @@ model Product {
   active    Boolean     @default(true)
   createdAt DateTime    @default(now())
   stock     Int         @default(0)
+  minStock  Int?        // aviso de stock bajo; null = usa el mínimo general (Setting "lowStockThreshold")
   items     OrderItem[]
   purchaseItems InvoiceItem[]
   categoryId Int?

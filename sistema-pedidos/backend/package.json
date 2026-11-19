@@ -15,8 +15,8 @@
     "test:stock-concurrency": "node scripts/test-stock-concurrency.js"
   },
   "dependencies": {
-    "@prisma/adapter-pg": "^7.4.1",
-    "@prisma/client": "^7.4.1",
+    "@prisma/adapter-pg": "^7.10.1",
+    "@prisma/client": "^7.10.1",
     "@supabase/supabase-js": "^2.112.0",
     "bcrypt": "^6.0.0",
     "cors": "^2.8.6",
@@ -26,10 +26,9 @@
     "helmet": "^8.1.0",
     "jsonwebtoken": "^9.0.3",
     "multer": "^2.2.0",
-    "nodemailer": "^8.0.1",
     "pdfkit": "^0.17.2",
     "pg": "^8.19.0",
-    "prisma": "^7.4.1",
+    "prisma": "^7.10.1",
     "resend": "^6.9.3",
     "sharp": "^0.35.5",
     "zod": "^4.3.6"

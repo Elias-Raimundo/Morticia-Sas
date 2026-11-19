@@ -13,6 +13,9 @@ import {
   Tooltip,
   Legend,
 } from "recharts";
+import { useConfirm } from "@/components/ui/ConfirmDialog";
+import { Bell, CalendarDays } from "lucide-react";
+import { ListSkeleton } from "@/components/ui/Skeleton";
 
 type ExpenseInstallment = {
   id: number;
@@ -65,6 +68,7 @@ const formatDay = (d?: string | null) =>
   d ? new Date(d).toLocaleDateString("es-AR", { timeZone: "UTC" }) : "-";
 
 export default function GastosPage() {
+  const confirmDialog = useConfirm();
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [categories, setCategories] = useState<ExpenseCategory[]>([]);
   const [total, setTotal] = useState(0);
@@ -244,7 +248,13 @@ export default function GastosPage() {
 
   const deleteCategory = async (id: number) => {
     const cat = categories.find((c) => c.id === id);
-    if (!cat || !window.confirm(`¿Eliminar la categoría "${cat.name}"?`)) return;
+    if (!cat) return;
+    const ok = await confirmDialog({
+      title: `¿Eliminar la categoría "${cat.name}"?`,
+      confirmText: "Eliminar",
+      danger: true,
+    });
+    if (!ok) return;
     try {
       const res = await apiFetch(`/api/expense-categories/${id}`, { method: "DELETE" });
       const data = await res.json().catch(() => ({}));
@@ -823,7 +833,7 @@ export default function GastosPage() {
         )}
 
         {loading ? (
-          <div className="p-6 text-gray-600">Cargando...</div>
+          <ListSkeleton className="p-6" />
         ) : expenses.length === 0 ? (
           <div className="p-6 text-gray-600">No hay gastos que coincidan.</div>
         ) : (
@@ -965,12 +975,12 @@ export default function GastosPage() {
                         </span>
                         {e.isInstallment && (
                           <span className="rounded-full bg-indigo-100 px-2 py-0.5 text-xs font-medium text-indigo-800">
-                            📅 {paidCount}/{installments.length} cuotas
+                            <CalendarDays className="mr-1 inline-block h-3.5 w-3.5 align-[-2px]" />{paidCount}/{installments.length} cuotas
                           </span>
                         )}
                         {e.reminderEnabled && (
                           <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800">
-                            🔔 con aviso
+                            <Bell className="mr-1 inline-block h-3.5 w-3.5 align-[-2px]" />con aviso
                           </span>
                         )}
                         {overdue && (

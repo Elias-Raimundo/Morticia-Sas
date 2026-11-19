@@ -44,7 +44,7 @@ export const getUserBalanceAdmin = async (userId, dateFrom, dateTo) => {
 
   const user = await prisma.user.findUnique({
     where: { id: uid },
-    select: { id: true, name: true, email: true },
+    select: { id: true, name: true, email: true, phone: true },
   });
 
   if (!user) throw new AppError("Usuario no encontrado", 404);

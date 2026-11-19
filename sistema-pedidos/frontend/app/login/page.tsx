@@ -1,15 +1,26 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { apiFetch } from "@/lib/api";
 import { toast } from "sonner";
+import PasswordInput from "@/components/ui/PasswordInput";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const router = useRouter();
+
+  // Llegó acá porque la sesión venció o se cerró (ver lib/api.ts)
+  useEffect(() => {
+    if (!new URLSearchParams(window.location.search).get("expired")) return;
+    // se demora un instante: el contenedor de avisos (Toaster) todavía se está montando
+    const t = setTimeout(() => {
+      toast.info("Tu sesión se cerró. Volvé a iniciar sesión.", { id: "session-expired" });
+    }, 100);
+    return () => clearTimeout(t);
+  }, []);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -41,7 +52,8 @@ export default function LoginPage() {
     localStorage.setItem("token", data.token);
 
     // ✅ redirección
-    window.location.href = "/dashboard"; // (más “bruto”, pero infalible)
+    // el admin arranca en el Inicio; el cliente, en Crear pedido
+    window.location.href = data.user?.role === "admin" ? "/dashboard/admin/inicio" : "/dashboard";
     // o router.push("/dashboard");
   }catch (error) {
     console.error("Error en login:", error);
@@ -88,9 +100,8 @@ return (
                 onChange={(e) => setEmail(e.target.value)}
               />
 
-              <input
+              <PasswordInput
                 className="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-amber-300"
-                type="password"
                 placeholder="Contraseña"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}

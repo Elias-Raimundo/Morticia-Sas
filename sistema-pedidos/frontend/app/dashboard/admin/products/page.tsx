@@ -4,6 +4,9 @@ import { useEffect, useState } from "react";
 import { apiFetch } from "@/lib/api";
 import ProductHistoryModal from "@/components/products/ProductHistoryModal";
 import { toast } from "sonner";
+import { useConfirm } from "@/components/ui/ConfirmDialog";
+import { Camera, History } from "lucide-react";
+import { PageSkeleton } from "@/components/ui/Skeleton";
 
 type Product = {
   id: number;
@@ -12,6 +15,7 @@ type Product = {
   price: number;
   internalPrice?: number | null; // 👈 nuevo
   stock: number;
+  minStock?: number | null; // null = usa el mínimo general
   active: boolean;
   categoryId?: number | null;
   imageUrl?: string | null;
@@ -27,6 +31,7 @@ type EditForm = {
   price: string;
   internalPrice: string; // 👈 nuevo
   stock: string;
+  minStock: string;
   categoryId: string;
 };
 
@@ -56,6 +61,7 @@ function ProductThumbnail({ imageUrl, size = "h-14 w-14" }: { imageUrl?: string 
 }
 
 export default function AdminProductsPage() {
+  const confirmDialog = useConfirm();
   const [items, setItems] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -70,6 +76,21 @@ export default function AdminProductsPage() {
   const [listCategoryFilter, setListCategoryFilter] = useState("");
   const [listSearchQuery, setListSearchQuery] = useState("");
   const [internalPrice, setInternalPrice] = useState("");
+  const [minStock, setMinStock] = useState("");
+  const [stockThreshold, setStockThreshold] = useState(5); // mínimo general (Configuración)
+
+  // Verde = ok · ámbar = en o debajo del mínimo · rojo = sin stock
+  const productMin = (p: Product) => p.minStock ?? stockThreshold;
+  const stockBadgeClass = (p: Product) =>
+    p.stock <= 0
+      ? "bg-red-100 text-red-700"
+      : p.stock <= productMin(p)
+      ? "bg-amber-100 text-amber-800 ring-1 ring-amber-300"
+      : "bg-green-50 text-green-700";
+  const stockBadgeTitle = (p: Product) =>
+    `${p.stock <= 0 ? "Sin stock" : p.stock <= productMin(p) ? "Stock bajo" : "Stock ok"} · mínimo ${productMin(p)}${
+      p.minStock == null ? " (general)" : ""
+    }`;
   const [stats, setStats] = useState<{
     capitalTotal: number;
     saleTotal: number;
@@ -85,6 +106,7 @@ export default function AdminProductsPage() {
     price: "",
     internalPrice: "",
     stock: "",
+    minStock: "",
     categoryId: "",
   });
 
@@ -103,11 +125,14 @@ export default function AdminProductsPage() {
   const load = async () => {
     setLoading(true);
     try {
-      const [productsRes, categoriesRes, capitalRes] = await Promise.all([
+      const [productsRes, categoriesRes, capitalRes, stockRes] = await Promise.all([
         apiFetch("/api/products/admin"),
         apiFetch("/api/categories"),
         apiFetch("/api/products/admin/capital"),
+        apiFetch("/api/settings/stock"),
       ]);
+      const stockData = await stockRes.json().catch(() => null);
+      if (stockRes.ok && typeof stockData?.threshold === "number") setStockThreshold(stockData.threshold);
 
       const productsData = await productsRes.json().catch(() => []);
       const categoriesData = await categoriesRes.json().catch(() => []);
@@ -135,6 +160,7 @@ export default function AdminProductsPage() {
           price: Number(price),
           internalPrice: internalPrice ? Number(internalPrice) : null, // 👈 nuevo
           stock: Number(stock),
+          minStock: minStock.trim() === "" ? null : Number(minStock),
           categoryId: categoryId ? Number(categoryId) : null,
         }),
       });
@@ -168,6 +194,7 @@ export default function AdminProductsPage() {
       setPrice("");
       setInternalPrice(""); 
       setStock("");
+      setMinStock("");
       setCategoryId("");
       setImageFile(null);
       setImagePreview(null);
@@ -208,6 +235,7 @@ export default function AdminProductsPage() {
       price: String(p.price),
       internalPrice: p.internalPrice != null ? String(p.internalPrice) : "",
       stock: String(p.stock),
+      minStock: p.minStock != null ? String(p.minStock) : "",
       categoryId: p.categoryId ? String(p.categoryId) : "",
     });
   };
@@ -220,6 +248,7 @@ export default function AdminProductsPage() {
       price: "",
       internalPrice: "",
       stock: "",
+      minStock: "",
       categoryId: "",
     });
   };
@@ -234,6 +263,7 @@ export default function AdminProductsPage() {
           price: Number(editForm.price),
           internalPrice: editForm.internalPrice ? Number(editForm.internalPrice) : null,
           stock: Number(editForm.stock),
+          minStock: editForm.minStock.trim() === "" ? null : Number(editForm.minStock),
           categoryId: editForm.categoryId ? Number(editForm.categoryId) : null,
         }),
       });
@@ -254,7 +284,13 @@ export default function AdminProductsPage() {
   };
 
   const removeProduct = async (id: number) => {
-    if (!confirm("¿Eliminar este producto? Esta acción no se puede deshacer.")) return;
+    const ok = await confirmDialog({
+      title: "¿Eliminar este producto?",
+      message: "Esta acción no se puede deshacer.",
+      confirmText: "Eliminar",
+      danger: true,
+    });
+    if (!ok) return;
 
     try {
       const res = await apiFetch(`/api/products/admin/${id}`, {
@@ -470,7 +506,12 @@ export default function AdminProductsPage() {
 };
 
 const removeCategory = async (id: number) => {
-  if (!confirm("¿Eliminar esta categoría?")) return;
+  const ok = await confirmDialog({
+    title: "¿Eliminar esta categoría?",
+    confirmText: "Eliminar",
+    danger: true,
+  });
+  if (!ok) return;
 
   try {
     const res = await apiFetch(`/api/categories/${id}`, {
@@ -508,7 +549,7 @@ const filteredItems = items.filter((p) => {
 });
 
 
-  if (loading) return <div className="p-6 text-gray-700">Cargando...</div>;
+  if (loading) return <PageSkeleton />;
 
 return (
   <div className="min-h-screen bg-gradient-to-b from-amber-50 via-white to-white p-6 space-y-6">
@@ -641,6 +682,14 @@ return (
             placeholder="Stock"
             value={stock}
             onChange={(e) => setStock(e.target.value)}
+          />
+
+          <input
+            className="border border-gray-300 bg-white px-3 py-2 rounded-lg text-gray-900 placeholder:text-gray-400"
+            placeholder={`Stock mínimo (vacío = ${stockThreshold})`}
+            title="Debajo de este número el producto aparece en Stock bajo. Vacío = usa el mínimo general de Configuración."
+            value={minStock}
+            onChange={(e) => setMinStock(e.target.value)}
           />
 
           <div className="space-y-2">
@@ -948,6 +997,15 @@ return (
                         }
                       />
 
+                      <input
+                        className="w-full border border-gray-300 rounded-lg px-3 py-2 text-gray-900 placeholder:text-gray-400"
+                        placeholder={`Stock mínimo (vacío = ${stockThreshold})`}
+                        value={editForm.minStock}
+                        onChange={(e) =>
+                          setEditForm((prev) => ({ ...prev, minStock: e.target.value }))
+                        }
+                      />
+
                       <select
                         className="w-full border border-gray-300 rounded-lg px-3 py-2 text-gray-900"
                         value={editForm.categoryId}
@@ -1002,11 +1060,8 @@ return (
                         <div className="text-gray-500">Stock</div>
                         <div className="text-right">
                           <span
-                            className={`inline-flex rounded-full px-3 py-1 text-xs font-medium ${
-                              p.stock > 0
-                                ? "bg-amber-100 text-amber-800"
-                                : "bg-red-100 text-red-700"
-                            }`}
+                            className={`inline-flex rounded-full px-3 py-1 text-xs font-medium ${stockBadgeClass(p)}`}
+                          title={stockBadgeTitle(p)}
                           >
                             {p.stock}
                           </span>
@@ -1073,19 +1128,19 @@ return (
 
           {/* Desktop */}
           <div className="hidden md:block overflow-x-auto">
-            <div className="min-w-[1050px]">
+            <div className="min-w-[980px]">
               <div
                 className="grid gap-2 px-4 py-3 border-b font-semibold text-sm bg-amber-50 text-gray-800"
                 style={{ gridTemplateColumns: "repeat(14, minmax(0, 1fr))" }}
               >
-                <div className="col-span-4">Nombre</div>
+                <div className="col-span-3">Nombre</div>
                 <div className="col-span-1">Unidad</div>
                 <div className="col-span-2">Categoría</div>
                 <div className="col-span-1">Precio</div>
                 <div className="col-span-2 text-amber-700">Costo interno</div>
                 <div className="col-span-1">Stock</div>
                 <div className="col-span-1 text-right">Act.</div>
-                <div className="col-span-2 text-right">Acciones</div>
+                <div className="col-span-3 text-right">Acciones</div>
               </div>
 
               {filteredItems.map((p, idx) => {
@@ -1099,7 +1154,7 @@ return (
                     }`}
                     style = {{ gridTemplateColumns: "repeat(14, minmax(0, 1fr))" }}
                   >
-                    <div className="col-span-4">
+                    <div className="col-span-3">
                       {isEditing ? (
                         <input
                           className="w-full border border-gray-300 rounded-lg px-2 py-1 text-gray-900"
@@ -1197,20 +1252,29 @@ return (
 
                     <div className="col-span-1">
                       {isEditing ? (
-                        <input
-                          className="w-full border border-gray-300 rounded-lg px-2 py-1 text-gray-900"
-                          value={editForm.stock}
-                          onChange={(e) =>
-                            setEditForm((prev) => ({ ...prev, stock: e.target.value }))
-                          }
-                        />
+                        <div className="space-y-1">
+                          <input
+                            className="w-full border border-gray-300 rounded-lg px-2 py-1 text-gray-900"
+                            value={editForm.stock}
+                            title="Stock"
+                            onChange={(e) =>
+                              setEditForm((prev) => ({ ...prev, stock: e.target.value }))
+                            }
+                          />
+                          <input
+                            className="w-full border border-gray-300 rounded-lg px-2 py-1 text-xs text-gray-900 placeholder:text-gray-400"
+                            placeholder={`mín ${stockThreshold}`}
+                            title="Stock mínimo (vacío = mínimo general)"
+                            value={editForm.minStock}
+                            onChange={(e) =>
+                              setEditForm((prev) => ({ ...prev, minStock: e.target.value }))
+                            }
+                          />
+                        </div>
                       ) : (
                         <span
-                          className={`inline-flex rounded-full px-3 py-1 text-xs font-medium ${
-                            p.stock > 0
-                              ? "bg-amber-100 text-amber-800"
-                              : "bg-red-100 text-red-700"
-                          }`}
+                          className={`inline-flex rounded-full px-3 py-1 text-xs font-medium ${stockBadgeClass(p)}`}
+                        title={stockBadgeTitle(p)}
                         >
                           {p.stock}
                         </span>
@@ -1230,7 +1294,7 @@ return (
                       </button>
                     </div>
 
-                    <div className="col-span-2 flex justify-end gap-1">
+                    <div className="col-span-3 flex justify-end gap-1">
                       {isEditing ? (
                         <>
                           <button className="px-3 py-1 rounded-lg bg-black text-white text-xs" onClick={() => saveEdit(p.id)}>
@@ -1243,7 +1307,7 @@ return (
                       ) : (
                         <>
                           <label className="cursor-pointer flex items-center justify-center h-7 w-7 rounded-lg border border-blue-200 text-blue-700 hover:bg-blue-50" title={p.imageUrl ? "Cambiar foto" : "Agregar foto"}>
-                            📷
+                            <Camera className="h-4 w-4" />
                             <input
                               type="file"
                               accept="image/jpeg,image/png,image/webp"
@@ -1256,7 +1320,7 @@ return (
                             />
                           </label>
                           <button className="flex items-center justify-center h-7 w-7 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50" title="Historial de precios y stock" onClick={() => setHistoryProduct({ id: p.id, name: p.name })}>
-                            🕘
+                            <History className="h-4 w-4" />
                           </button>
                           <button className="px-2 py-1 rounded-lg border border-amber-300 text-amber-700 text-xs hover:bg-amber-50" onClick={() => startEdit(p)}>
                             Editar

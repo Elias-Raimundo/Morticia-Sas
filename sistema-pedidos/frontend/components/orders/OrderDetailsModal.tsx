@@ -6,6 +6,10 @@ import { toast } from "sonner";
 import { formatCountdown, useCountdown } from "@/lib/useCountdown";
 import EditConfirmedOrderModal from "./EditConfirmedOrderModal";
 import { PAYMENT_LABELS } from "./PaymentMethodPicker";
+import { useConfirm } from "@/components/ui/ConfirmDialog";
+import { MessageCircle, Pencil } from "lucide-react";
+import { sharePdfOrWhatsapp } from "@/lib/whatsapp";
+import { ListSkeleton } from "@/components/ui/Skeleton";
 
 type Item = {
   id: number;
@@ -48,10 +52,14 @@ export default function OrderDetailsModal({
   onClose: () => void;
   isAdmin: boolean;
 }) {
+  const confirmDialog = useConfirm();
   const [order, setOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(false);
   const [downloading, setDownloading]=useState(false);
   const [editOpen, setEditOpen] = useState(false);
+  // PDF ya descargado para compartir por WhatsApp (en iPhone el menú de compartir tiene que
+  // abrirse enseguida después del toque, sin esperar una descarga)
+  const [pdfBlob, setPdfBlob] = useState<Blob | null>(null);
 
   // cuenta regresiva de la ventana para modificar un pedido confirmado (solo cliente)
   const editSeconds = useCountdown(isAdmin ? null : order?.editableUntil);
@@ -83,8 +91,44 @@ export default function OrderDetailsModal({
         return;
       }
       setOrder(data);
+      if (isAdmin) {
+        setPdfBlob(null);
+        apiFetch(`/api/orders/${orderId}/pdf`)
+          .then((res) => (res.ok ? res.blob() : null))
+          .then((blob) => setPdfBlob(blob))
+          .catch(() => setPdfBlob(null));
+      }
     } finally {
       setLoading(false);
+    }
+  };
+
+  const shareWhatsapp = async () => {
+    if (!order) return;
+    const money = (n: number) =>
+      new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS", maximumFractionDigits: 0 }).format(Number(n));
+    const lines = [
+      `Hola${order.user?.name ? ` ${order.user.name}` : ""}! Te paso el detalle de tu pedido #${order.id} en Morticia:`,
+      "",
+      ...(order.items ?? []).map(
+        (i) => `• ${i.quantity} x ${i.product?.name ?? "Producto"}${i.product?.unit ? ` (${i.product.unit})` : ""} — ${money(i.subtotal)}`
+      ),
+      "",
+      `*Total: ${money(order.total)}*`,
+    ];
+    if (order.deliveryDate) {
+      lines.push(
+        `Entrega: ${new Date(order.deliveryDate).toLocaleDateString("es-AR", { weekday: "long", day: "numeric", month: "long", timeZone: "UTC" })}`
+      );
+    }
+    const result = await sharePdfOrWhatsapp({
+      pdf: pdfBlob,
+      filename: `pedido_${order.id}.pdf`,
+      text: lines.join("\n"),
+      phone: order.user?.phone,
+    });
+    if (result === "fallback" && !order.user?.phone) {
+      toast.info("El cliente no tiene celular cargado: elegí el contacto en WhatsApp.");
     }
   };
 
@@ -145,7 +189,8 @@ export default function OrderDetailsModal({
   const removeItem = async (itemId: number) => {
     if (!orderId) return;
 
-    if (!confirm("¿Quitar este producto del pedido?")) return;
+    const ok = await confirmDialog({ title: "¿Quitar este producto del pedido?", confirmText: "Quitar", danger: true });
+    if (!ok) return;
 
     setRemovingItemId(itemId);
     try {
@@ -235,6 +280,16 @@ export default function OrderDetailsModal({
             )}
           </div>
           <div className="flex items-center gap-2">
+            {isAdmin && order && (
+              <button
+                onClick={shareWhatsapp}
+                className="flex items-center gap-1.5 rounded-lg border border-green-300 bg-green-50 px-3 py-1 text-sm font-medium text-green-800 hover:bg-green-100"
+                title="Mandar el pedido al cliente por WhatsApp"
+              >
+                <MessageCircle className="h-4 w-4" />
+                WhatsApp
+              </button>
+            )}
             <button
               onClick={viewPdf}
               disabled={!orderId}
@@ -253,7 +308,7 @@ export default function OrderDetailsModal({
 
         <div className="p-5 text-gray-900 overflow-y-auto">
           {loading ? (
-            <div className="text-gray-600">Cargando...</div>
+            <ListSkeleton className="py-2" />
           ) : !order ? (
             <div className="text-gray-600">No se pudo cargar.</div>
           ) : (
@@ -288,7 +343,7 @@ export default function OrderDetailsModal({
                     onClick={() => setEditOpen(true)}
                     className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-800 hover:bg-amber-100"
                   >
-                    ✏️ Modificar pedido · {formatCountdown(editSeconds)}
+                    <Pencil className="mr-1 inline-block h-3.5 w-3.5 align-[-2px]" />Modificar pedido · {formatCountdown(editSeconds)}
                   </button>
                 )}
               </div>

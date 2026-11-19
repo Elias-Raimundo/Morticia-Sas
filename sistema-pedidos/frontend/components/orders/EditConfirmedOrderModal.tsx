@@ -5,6 +5,7 @@ import { apiFetch } from "@/lib/api";
 import { toast } from "sonner";
 import { formatCountdown, useCountdown } from "@/lib/useCountdown";
 import PaymentMethodPicker, { PaymentInfo } from "./PaymentMethodPicker";
+import { X } from "lucide-react";
 
 type OrderItem = {
   id: number;
@@ -161,7 +162,7 @@ export default function EditConfirmedOrderModal({
         toast.error(data?.error || "No se pudo modificar el pedido");
         return;
       }
-      toast.success("Pedido modificado ✅");
+      toast.success("Pedido modificado");
       onSaved();
       onClose();
     } catch {
@@ -245,7 +246,7 @@ export default function EditConfirmedOrderModal({
                       className="rounded-md border border-red-200 px-2 py-1 text-xs text-red-700 hover:bg-red-50 disabled:opacity-60"
                       title="Quitar"
                     >
-                      ✕
+                      <X className="h-3.5 w-3.5" />
                     </button>
                   </div>
                 </div>

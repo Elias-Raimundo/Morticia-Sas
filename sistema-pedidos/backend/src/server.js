@@ -1,6 +1,3 @@
-if (process.env.NODE_ENV !== "production"){
-  process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
-}
 import dns from "node:dns"
 dns.setDefaultResultOrder("ipv4first");
 import "dotenv/config";
@@ -37,8 +34,20 @@ app.set("trust proxy", 1);
 
 
 
+// CORS: solo el frontend puede llamar a la API desde el navegador.
+// CORS_ORIGINS = lista separada por comas (ej: "https://morticia-sas.com,https://www.morticia-sas.com").
+// Si no está configurada, se permite cualquier origen como antes (y se avisa en el log).
+const corsOrigins = (process.env.CORS_ORIGINS || "")
+  .split(",")
+  .map((o) => o.trim().replace(/\/$/, ""))
+  .filter(Boolean);
+
+if (corsOrigins.length === 0) {
+  console.warn("⚠️  CORS_ORIGINS no está configurada: la API acepta pedidos desde cualquier origen.");
+}
+
 app.use(cors({
-  origin: "*",
+  origin: corsOrigins.length ? corsOrigins : "*",
 }));
 app.use(helmet());
 

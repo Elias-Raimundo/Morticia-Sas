@@ -12,6 +12,7 @@ import {
   YAxis,
   Tooltip,
 } from "recharts";
+import { ChartSkeleton, ListSkeleton } from "@/components/ui/Skeleton";
 
 type ProductStat = {
   productId: number;
@@ -259,7 +260,7 @@ const formatLocalDateFull = (value: string) => {
           </div>
 
           {loading ? (
-            <div className="p-6 text-gray-600">Cargando resumen...</div>
+            <ListSkeleton className="p-6" />
           ) : !data || !data.products?.length ? (
             <div className="p-6 text-gray-500">
               No hay ventas para este período.
@@ -334,7 +335,7 @@ const formatLocalDateFull = (value: string) => {
           </div>
 
           {loading ? (
-            <div className="p-6 text-gray-600">Cargando gráfico...</div>
+            <ChartSkeleton />
           ) : !data?.salesByDay?.length ? (
             <div className="p-6 text-gray-500">
               No hay datos para mostrar en el gráfico.

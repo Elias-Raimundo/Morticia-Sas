@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { apiFetch } from "@/lib/api";
 import { toast } from "sonner";
+import { ListSkeleton } from "@/components/ui/Skeleton";
 
 type Provider = {
   id: number;
@@ -191,7 +192,7 @@ export default function ProveedoresPage() {
         </div>
 
         {loading ? (
-          <div className="p-6 text-gray-600">Cargando...</div>
+          <ListSkeleton className="p-6" />
         ) : items.length === 0 ? (
           <div className="p-6 text-gray-600">Todavía no cargaste ningún proveedor.</div>
         ) : filteredItems.length === 0 ? (

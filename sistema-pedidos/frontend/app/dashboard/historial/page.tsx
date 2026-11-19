@@ -5,6 +5,7 @@ import OrderList from "@/components/orders/OrderList";
 import OrderDetailsModal from "@/components/orders/OrderDetailsModal";
 import { useEffect, useState } from "react";
 import { apiFetch } from "@/lib/api";
+import { ListSkeleton, PageSkeleton } from "@/components/ui/Skeleton";
 
 export default function HistorialPage() {
   const { user, loading } = useAuth();
@@ -44,7 +45,7 @@ export default function HistorialPage() {
     loadOrders();
   }, [user]);
 
-  if (loading) return <div className="p-6 text-gray-600">Cargando...</div>;
+  if (loading) return <PageSkeleton />;
   if (!user) return <div className="p-6 text-red-600">No autorizado</div>;
 
   const isAdmin = user.role === "admin";
@@ -196,7 +197,7 @@ export default function HistorialPage() {
 
           <div className="p-4 md:p-6">
             {loadingOrders ? (
-              <div className="text-gray-600">Cargando pedidos...</div>
+              <ListSkeleton className="py-2" />
             ) : orders.length === 0 ? (
               <div className="rounded-xl border border-dashed border-gray-300 p-8 text-center text-gray-600">
                 No hay pedidos todavía.

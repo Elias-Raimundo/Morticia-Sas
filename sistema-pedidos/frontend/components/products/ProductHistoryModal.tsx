@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { apiFetch } from "@/lib/api";
+import { ListSkeleton } from "@/components/ui/Skeleton";
 
 type Entry = {
   id: number;
@@ -105,7 +106,7 @@ export default function ProductHistoryModal({
 
         <div className="overflow-y-auto">
           {loading ? (
-            <div className="p-5 text-sm text-gray-600">Cargando historial...</div>
+            <ListSkeleton className="p-5" />
           ) : visible.length === 0 ? (
             <div className="p-5 text-sm text-gray-500">Todavía no hay cambios registrados.</div>
           ) : (

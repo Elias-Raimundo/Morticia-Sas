@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/context/Auth.context";
 import {Toaster} from "sonner";
+import { ConfirmProvider } from "@/components/ui/ConfirmDialog";
 
 const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
 const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] });
@@ -13,7 +14,7 @@ export const metadata: Metadata = {
   manifest: "/manifest.json",
   icons:{
     icon: "/loguito.png",
-    apple: "/loguito.png"
+    apple: "/apple-touch-icon.png"
   }
 };
 
@@ -27,8 +28,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="es">
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
         <AuthProvider>
-          {children}
-          <Toaster richColors position="top-center" />
+          <ConfirmProvider>
+            {children}
+            <Toaster richColors position="top-center" />
+          </ConfirmProvider>
         </AuthProvider>
       </body>
     </html>

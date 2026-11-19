@@ -4,6 +4,9 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { apiFetch } from "@/lib/api";
 import { toast } from "sonner";
 import PaymentMethodPicker, { PaymentInfo } from "./PaymentMethodPicker";
+import { useConfirm } from "@/components/ui/ConfirmDialog";
+import { X } from "lucide-react";
+import { PageSkeleton } from "@/components/ui/Skeleton";
 
 type Product = {
   id: number;
@@ -59,6 +62,7 @@ function ProductThumbnail({ imageUrl, size = "h-12 w-12" }: { imageUrl?: string 
 }
 
 export default function CreateOrderForm({ onSent }: { onSent?: () => void }) {
+  const confirmDialog = useConfirm();
   const [draft, setDraft] = useState<DraftOrder | null>(null);
   const [products, setProducts] = useState<Product[]>([]);
   const [q, setQ] = useState("");
@@ -190,7 +194,8 @@ export default function CreateOrderForm({ onSent }: { onSent?: () => void }) {
 
   const removeItem = async (itemId: number) => {
     if (!draft) return;
-    if (!confirm("¿Eliminar este producto del pedido?")) return;
+    const ok = await confirmDialog({ title: "¿Quitar este producto del pedido?", confirmText: "Quitar", danger: true });
+    if (!ok) return;
 
     setBusy(true);
     try {
@@ -263,7 +268,7 @@ export default function CreateOrderForm({ onSent }: { onSent?: () => void }) {
       ]
         .filter(Boolean)
         .join(" ");
-      toast.success(`Pedido enviado ✅ Podés modificarlo durante las próximas ${windowText} desde tu historial.`);
+      toast.success(`Pedido enviado. Podés modificarlo durante las próximas ${windowText} desde tu historial.`);
       setComments("");
       setDeliveryDate("");
       setPaymentMethod("");
@@ -276,7 +281,7 @@ export default function CreateOrderForm({ onSent }: { onSent?: () => void }) {
     }
   };
 
-  if (loading) return <div className="text-gray-600">Cargando...</div>;
+  if (loading) return <PageSkeleton />;
   if (!draft) return <div className="text-gray-600">No se pudo cargar el pedido.</div>;
 
   return (
@@ -627,7 +632,7 @@ export default function CreateOrderForm({ onSent }: { onSent?: () => void }) {
 
     {/* Barra fija de resumen — solo mobile */}
     {draft.items?.length ? (
-      <div className="fixed inset-x-0 bottom-0 z-40 border-t border-amber-200 bg-white/95 backdrop-blur px-4 py-3 shadow-[0_-4px_12px_rgba(0,0,0,0.06)] lg:hidden">
+      <div className="fixed inset-x-0 bottom-16 md:bottom-0 z-40 border-t border-amber-200 bg-white/95 backdrop-blur px-4 py-3 shadow-[0_-4px_12px_rgba(0,0,0,0.06)] lg:hidden">
         <button
           type="button"
           onClick={scrollToCart}
@@ -660,7 +665,7 @@ export default function CreateOrderForm({ onSent }: { onSent?: () => void }) {
           onClick={() => setZoomedImage(null)}
           className="absolute right-4 top-4 rounded-full bg-white/90 px-3 py-2 text-sm font-semibold text-gray-900 hover:bg-white"
         >
-          Cerrar ✕
+          Cerrar <X className="inline-block h-4 w-4 align-[-3px]" />
         </button>
       </div>
     )}

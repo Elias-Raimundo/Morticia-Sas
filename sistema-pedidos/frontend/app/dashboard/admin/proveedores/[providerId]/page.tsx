@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { apiFetch } from "@/lib/api";
 import { toast } from "sonner";
+import { useConfirm } from "@/components/ui/ConfirmDialog";
+import { PageSkeleton } from "@/components/ui/Skeleton";
 
 type Product = { id: number; name: string; unit: string };
 
@@ -77,6 +79,7 @@ type DraftItem = {
 type DraftInstallment = { amount: string; dueDate: string };
 
 export default function ProviderDetailPage() {
+  const confirmDialog = useConfirm();
   const params = useParams();
   const router = useRouter();
   const providerId = params?.providerId as string;
@@ -372,11 +375,14 @@ export default function ProviderDetailPage() {
   const deleteProvider = async () => {
     const debtWarning =
       provider && provider.debt > 0
-        ? `\n\n⚠️ Todavía le debés ${formatMoney(provider.debt)}. Esa deuda queda registrada igual, pero el proveedor no va a aparecer más en tu lista.`
+        ? `\n\nAtención: todavía le debés ${formatMoney(provider.debt)}. Esa deuda queda registrada igual, pero el proveedor no va a aparecer más en tu lista.`
         : "";
-    const confirmed = window.confirm(
-      `¿Eliminar a "${provider?.name}"? Sus facturas y movimientos quedan guardados, pero dejará de aparecer en la lista de proveedores.${debtWarning}`
-    );
+    const confirmed = await confirmDialog({
+      title: `¿Eliminar a "${provider?.name}"?`,
+      message: `Sus facturas y movimientos quedan guardados, pero dejará de aparecer en la lista de proveedores.${debtWarning}`,
+      confirmText: "Eliminar",
+      danger: true,
+    });
     if (!confirmed) return;
 
     setDeleting(true);
@@ -394,7 +400,7 @@ export default function ProviderDetailPage() {
     }
   };
 
-  if (loading) return <div className="p-6 text-gray-600">Cargando...</div>;
+  if (loading) return <PageSkeleton />;
   if (!provider) return <div className="p-6 text-gray-600">Proveedor no encontrado.</div>;
 
   return (

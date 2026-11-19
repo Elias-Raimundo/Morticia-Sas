@@ -3,6 +3,9 @@
 import { useEffect, useRef, useState } from "react";
 import { apiFetch } from "@/lib/api";
 import { toast } from "sonner";
+import { useConfirm } from "@/components/ui/ConfirmDialog";
+import { ShoppingCart, X } from "lucide-react";
+import { ListSkeleton } from "@/components/ui/Skeleton";
 
 type Product = {
   id: number;
@@ -80,6 +83,7 @@ const inputClass =
   "w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400";
 
 export default function VentasPage() {
+  const confirmDialog = useConfirm();
   const [products, setProducts] = useState<Product[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
   const [sales, setSales] = useState<Sale[]>([]);
@@ -392,9 +396,12 @@ export default function VentasPage() {
   };
 
   const cancelSale = async (sale: Sale) => {
-    const ok = window.confirm(
-      `¿Anular la venta (remito N° ${sale.remito})?\n\nSe devuelve el stock y se revierte el saldo del cliente.`
-    );
+    const ok = await confirmDialog({
+      title: `¿Anular la venta (remito N° ${sale.remito})?`,
+      message: "Se devuelve el stock y se revierte el saldo del cliente.",
+      confirmText: "Anular venta",
+      danger: true,
+    });
     if (!ok) return;
     setCancelingId(sale.id);
     try {
@@ -590,7 +597,7 @@ export default function VentasPage() {
           onChange={(e) => setProductSearch(e.target.value)}
         />
         {loading ? (
-          <p className="text-sm text-gray-500">Cargando productos...</p>
+          <ListSkeleton className="py-2" />
         ) : (
           <ul className="divide-y rounded-lg border border-gray-200">
             {productResults.length === 0 ? (
@@ -746,14 +753,14 @@ export default function VentasPage() {
         <>
           {showCartPanel && (
             <div
-              className="fixed inset-x-0 bottom-[64px] z-40 mx-auto max-h-[55vh] w-full max-w-3xl overflow-y-auto rounded-t-2xl border border-b-0 border-gray-200 bg-white p-4 shadow-2xl md:bottom-[68px]"
+              className="fixed inset-x-0 bottom-[128px] z-40 mx-auto max-h-[55vh] w-full max-w-3xl overflow-y-auto rounded-t-2xl border border-b-0 border-gray-200 bg-white p-4 shadow-2xl md:bottom-[68px]"
               role="dialog"
               aria-label="Productos de la venta"
             >
               <div className="mb-2 flex items-center justify-between">
                 <span className="text-sm font-semibold text-gray-900">Productos de la venta</span>
                 <button onClick={() => setShowCartPanel(false)} className="text-sm text-gray-500 hover:text-gray-700">
-                  Cerrar ✕
+                  Cerrar <X className="inline-block h-4 w-4 align-[-3px]" />
                 </button>
               </div>
               <ul className="divide-y">
@@ -790,13 +797,13 @@ export default function VentasPage() {
             </div>
           )}
 
-          <div className="fixed inset-x-0 bottom-0 z-40 border-t border-gray-200 bg-white/95 backdrop-blur shadow-[0_-4px_12px_rgba(0,0,0,0.06)]">
+          <div className="fixed inset-x-0 bottom-16 md:bottom-0 z-40 border-t border-gray-200 bg-white/95 backdrop-blur shadow-[0_-4px_12px_rgba(0,0,0,0.06)]">
             <div className="mx-auto flex max-w-3xl items-center justify-between gap-3 px-4 py-3">
               <button
                 onClick={() => setShowCartPanel((v) => !v)}
                 className="flex min-w-0 flex-1 items-center gap-2 text-left"
               >
-                <span className="text-xl">🛒</span>
+                <ShoppingCart className="h-5 w-5 shrink-0 text-amber-600" />
                 <span className="min-w-0 truncate">
                   <span className="block text-xs text-gray-500">
                     {cart.length} {cart.length === 1 ? "producto" : "productos"} · {showCartPanel ? "ocultar" : "ver detalle"}
@@ -821,7 +828,7 @@ export default function VentasPage() {
           <h2 className="text-lg font-bold text-gray-900">Últimas ventas al público</h2>
         </div>
         {loading ? (
-          <div className="p-5 text-sm text-gray-600">Cargando...</div>
+          <ListSkeleton className="p-5" />
         ) : sales.length === 0 ? (
           <div className="p-5 text-sm text-gray-600">Todavía no registraste ventas al público.</div>
         ) : (
@@ -889,7 +896,7 @@ export default function VentasPage() {
           <p className="text-xs text-gray-500">No afectan stock ni saldo: son solo cotizaciones.</p>
         </div>
         {loading ? (
-          <div className="p-5 text-sm text-gray-600">Cargando...</div>
+          <ListSkeleton className="p-5" />
         ) : quotes.length === 0 ? (
           <div className="p-5 text-sm text-gray-600">Todavía no generaste presupuestos.</div>
         ) : (

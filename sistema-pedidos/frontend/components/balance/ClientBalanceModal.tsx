@@ -4,6 +4,9 @@ import { useEffect, useState } from "react";
 import { apiFetch } from "@/lib/api";
 import { toast } from "sonner";
 import OrderDetailsModal from "../orders/OrderDetailsModal";
+import { ListSkeleton } from "@/components/ui/Skeleton";
+import { MessageCircle } from "lucide-react";
+import { openWhatsapp } from "@/lib/whatsapp";
 
 type Movement = {
   id: number;
@@ -18,6 +21,7 @@ type DetailData = {
     id: number;
     name: string;
     email: string | null;
+    phone?: string | null;
   };
   balance: number;
   movements: Movement[];
@@ -79,6 +83,28 @@ export default function ClientBalanceModal({
       currency: "ARS",
       maximumFractionDigits: 0,
     }).format(n);
+
+  // Mensaje con el saldo y los últimos movimientos, listo para mandar por WhatsApp
+  const shareBalance = () => {
+    if (!data) return;
+    const today = new Date().toLocaleDateString("es-AR");
+    const status =
+      data.balance > 0.5
+        ? `tu saldo pendiente es de *${formatMoney(data.balance)}*.`
+        : data.balance < -0.5
+        ? `tenés un saldo a favor de *${formatMoney(Math.abs(data.balance))}*.`
+        : "no tenés saldo pendiente. ¡Gracias!";
+    const last = data.movements.slice(0, 5).map(
+      (m) =>
+        `• ${new Date(m.createdAt).toLocaleDateString("es-AR")} — ${m.description}: ${m.amount > 0 ? "" : "-"}${formatMoney(Math.abs(m.amount))}`
+    );
+    const text = [
+      `Hola ${data.user.name}! Al ${today}, ${status}`,
+      ...(last.length ? ["", "Últimos movimientos:", ...last] : []),
+    ].join("\n");
+    openWhatsapp(text, data.user.phone);
+    if (!data.user.phone) toast.info("El cliente no tiene celular cargado: elegí el contacto en WhatsApp.");
+  };
 
   const formatDate = (value: string) => {
     const d = new Date(value);
@@ -143,19 +169,31 @@ export default function ClientBalanceModal({
               )}
             </div>
 
-            <button
-              onClick={onClose}
-              className="w-full rounded-lg border px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 sm:w-auto"
-            >
-              Cerrar
-            </button>
+            <div className="flex gap-2">
+              {data && (
+                <button
+                  onClick={shareBalance}
+                  className="flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-green-300 bg-green-50 px-3 py-2 text-sm font-medium text-green-800 hover:bg-green-100 sm:flex-none"
+                  title="Mandar el saldo al cliente por WhatsApp"
+                >
+                  <MessageCircle className="h-4 w-4" />
+                  Enviar saldo
+                </button>
+              )}
+              <button
+                onClick={onClose}
+                className="flex-1 rounded-lg border px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 sm:flex-none"
+              >
+                Cerrar
+              </button>
+            </div>
           </div>
         </div>
 
         {/* Body */}
         <div className="space-y-5 overflow-y-auto p-4 md:p-5">
           {loading ? (
-            <div className="text-gray-600">Cargando...</div>
+            <ListSkeleton className="py-2" />
           ) : !data ? (
             <div className="text-gray-600">No se pudo cargar.</div>
           ) : (
